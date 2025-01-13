@@ -25,7 +25,7 @@ class ExpenseAdmin(admin.ModelAdmin):
 
 # Group admin configuration
 class GroupAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name')
+    list_display = ('group_id', 'name')
     search_fields = ('name',)
     filter_horizontal = ('members',)  # For selecting multiple members easily
     ordering = ('name',)

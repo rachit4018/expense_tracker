@@ -18,8 +18,11 @@ class Expense(models.Model):
     date = models.DateField(default=datetime.now)
     receipt_image = models.ImageField(upload_to="receipts/", blank=True, null=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    group_id = models.ForeignKey('Group', on_delete=models.CASCADE)
+
 
 class Group(models.Model):
+    group_id = models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')
     name = models.CharField(max_length=100)
     members = models.ManyToManyField(settings.AUTH_USER_MODEL)
 
@@ -27,4 +30,5 @@ class Settlement(models.Model):
     payment_status = models.CharField(max_length=50, choices=[("pending", "Pending"), ("completed", "Completed")])
     settlement_method = models.CharField(max_length=50, blank=True)
     due_date = models.DateField()
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.CASCADE)

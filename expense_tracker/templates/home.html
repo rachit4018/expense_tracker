@@ -53,7 +53,10 @@
                 if (data.groups.length > 0) {
                     data.groups.forEach(group => {
                         const li = document.createElement('li');
-                        li.textContent = group.name;
+                        const groupLink = document.createElement('a');
+                        groupLink.href = `api/groups/${group.id}/`; // Linking to the group details page
+                        groupLink.textContent = group.name;
+                        li.appendChild(groupLink);
                         groupList.appendChild(li);
                     });
                 } else {

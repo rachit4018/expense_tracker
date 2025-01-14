@@ -1,15 +1,15 @@
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse,HttpResponseRedirect
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from .models import Category, Expense, Group, Settlement
 from django.urls import reverse_lazy
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from .forms import CustomUserCreationForm, CustomAuthenticationForm
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import Group
+from .models import Group,CustomUser
 from django.utils.decorators import method_decorator
 import json
 from .forms import GroupForm
@@ -39,7 +39,7 @@ def login_view(request):
 def logout_view(request):
     if request.method == 'POST':
         logout(request)
-        return redirect('home')
+        return redirect('login')
     
 
 
@@ -65,13 +65,102 @@ def home_view(request):
     if request.method == 'POST':
         # Handle group creation
         group_name = request.POST.get('group_name')
+        creted_by = request.user
         if group_name:
-            new_group = Group.objects.create(name=group_name)
+            new_group = Group.objects.create(name=group_name,created_by=creted_by)
             new_group.members.add(request.user)
             return redirect('home')  # Redirect to the home page after creating the group
 
     # Render the home page (groups are fetched via the API separately)
     return render(request, 'home.html', {'user': request.user})
+
+
+
+from django.shortcuts import get_object_or_404, render
+from django.contrib.auth.decorators import login_required
+from .models import Group, Expense
+
+@login_required
+def group_details_api(request, group_id):
+    if request.method == 'GET':
+        # Fetch the group by ID
+        group = get_object_or_404(Group, group_id=group_id)
+
+        # Ensure the user is a member of the group
+        if not group.members.filter(id=request.user.id).exists():
+            return JsonResponse({'error': 'You are not a member of this group'}, status=403)
+
+        # Prepare group data
+        group_data = {
+            'group_id': group.group_id,
+            'name': group.name,
+            'members': [{'username': member.username} for member in group.members.all()],
+            'created_by': group.created_by,
+        }
+
+        # Fetch related expenses for the group
+        expenses = Expense.objects.filter(category_id=group.group_id)
+        expenses_data = [
+            {
+                'amount': expense.amount,
+                'created_by': expense.created_by.username,
+            }
+            for expense in expenses
+        ]
+
+        # Get users from the same college as the current user
+        current_user_college = request.user.college
+        available_members = CustomUser.objects.filter(college=current_user_college).exclude(id=request.user.id)
+
+        # Prepare the list of users from the same college to populate in the dropdown
+        available_members_data = [{'username': member.username} for member in available_members]
+
+        # Combine group, expense, and available members data
+        context = {
+            'group': group_data,
+            'expenses': expenses_data,
+            'available_members': available_members_data,
+            'user':request.user  # Add available members to context
+        }
+
+        return render(request, 'group_details.html', context)
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+
+@login_required
+def add_member_to_group(request, group_id):
+    if request.method == 'POST':
+        # Fetch the group by ID
+        group = get_object_or_404(Group, group_id=group_id)
+
+        # Ensure the user is the creator of the group
+        if group.created_by != request.user:
+            return JsonResponse({'error': 'Only the group creator can add members'}, status=403)
+
+        # Get the username from the form submission
+        username = request.POST.get('username')
+
+        if not username:
+            return JsonResponse({'error': 'Username is required'}, status=400)
+
+        try:
+            # Find the user by username
+            user_to_add = CustomUser.objects.get(username=username)
+
+            # Ensure the user is not already a member
+            if user_to_add in group.members.all():
+                return JsonResponse({'error': 'User is already a member of the group'}, status=400)
+
+            # Add the user to the group
+            group.members.add(user_to_add)
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
+        
+        except CustomUser.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 # Views for Category

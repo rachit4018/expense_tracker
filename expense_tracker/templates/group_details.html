@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        h2, h3 {
+            margin-top: 20px;
+        }
+        .back-button {
+            margin-top: 20px;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Group Details</h1>
+
+    {% if group %}
+        <h2>Group: {{ group.name }}</h2>
+        <h3>Created By: {{ group.created_by }}</h3>
+        <h3>Members:</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in group.members %}
+                    <tr>
+                        <td>{{ member.username }}</td>
+                    </tr>
+                    
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h3>Expenses:</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Amount</th>
+                    <th>Created By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if expenses %}
+                    {% for expense in expenses %}
+                        <tr>
+                            <td>{{ expense.amount }}</td>
+                            </td>
+                            <td>{{ expense.created_by }}</td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6">No expenses found for this group.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+        {% if group.created_by == user %}
+        <div class="add-member-form">
+            <h3>Add Member to Group:</h3>
+            <form method="post" action="{% url 'add_member' group_id=group.group_id %}">
+                {% csrf_token %}
+                <label for="username">Select Member:</label>
+                <select name="username" id="username" required>
+                    {% for member in available_members %}
+                        <option value="{{ member.username }}">{{ member.username }}</option>
+                    {% empty %}
+                        <option value="">No users available from the same college.</option>
+                    {% endfor %}
+                </select>
+                <button type="submit">Add Member</button>
+            </form>
+        </div>
+        {% endif %}
+    {% else %}
+        <p class="error">Error: Group not found or you are not a member of this group.</p>
+    {% endif %}
+
+    <div class="back-button">
+        <a href="{% url 'home' %}">Back to Home</a>
+    </div>
+</body>
+</html>

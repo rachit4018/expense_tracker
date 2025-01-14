@@ -93,6 +93,7 @@ DATABASES = {
         'PORT': os.getenv('DB_PORT'),
     }
 }
+
 AUTH_USER_MODEL = 'expense_tracker.CustomUser'
 
 

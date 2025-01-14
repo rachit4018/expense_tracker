@@ -9,6 +9,8 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
 
     path('api/groups/', views.user_groups_api, name='user-groups-api'),
+    path('api/groups/<int:group_id>/', views.group_details_api, name='group-details-api'),
+    path('group/<int:group_id>/add_member/', views.add_member_to_group, name='add_member'),
 
     path('categories/', views.CategoryListView.as_view(), name='category_list'),
     path('category/create/', views.CategoryCreateView.as_view(), name='category_create'),

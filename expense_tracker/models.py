@@ -24,7 +24,16 @@ class Expense(models.Model):
 class Group(models.Model):
     group_id = models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')
     name = models.CharField(max_length=100)
-    members = models.ManyToManyField(settings.AUTH_USER_MODEL)
+    members = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='%(class)s_groups')  # Custom reverse accessor for members
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='%(class)s_created_groups',
+        to_field='username'  # Specify using 'username' as the reference field
+    )
+
+    def __str__(self):
+        return self.name
 
 class Settlement(models.Model):
     payment_status = models.CharField(max_length=50, choices=[("pending", "Pending"), ("completed", "Completed")])

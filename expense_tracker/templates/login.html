@@ -7,11 +7,52 @@
 </head>
 <body>
     <h1>Login</h1>
-    <form method="post">
+    <form id="loginForm" method="POST" action="{% url 'login' %}">
         {% csrf_token %}
         {{ form.as_p }}
         <button type="submit">Login</button>
     </form>
     <p>Don't have an account? <a href="{% url 'signup' %}">Sign up</a></p>
+
+    <script>
+        // Function to handle login form submission
+        function handleLogin(event) {
+            event.preventDefault();  // Prevent the form from being submitted traditionally
+
+            const formData = new FormData(event.target);
+            const url = event.target.action; // Get the form action URL dynamically
+            
+            // Get the CSRF token from the page
+            const csrfToken = document.querySelector('[name="csrfmiddlewaretoken"]').value;
+
+            // Send the form data along with the CSRF token
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,  // Add CSRF token to the headers
+                },
+                body: formData,  // Send form data as POST body
+            })
+            .then(response => response.json())  // Expect JSON response
+            .then(data => {
+                if (data.token) {
+                    // Store the token in localStorage
+                    localStorage.setItem('access_token', data.token);
+                    console.log("Token saved:", data.token);
+                    window.location.href = '/expense_tracker/'; // Redirect to home page or any other page
+                } else {
+                    console.error('Login failed', data);
+                    alert('Login failed. Please check your credentials.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during login.');
+            });
+        }
+
+        // Attach the handleLogin function to the form submit event
+        document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    </script>
 </body>
 </html>

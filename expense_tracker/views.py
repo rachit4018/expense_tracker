@@ -13,16 +13,51 @@ from .models import Group,CustomUser
 from django.utils.decorators import method_decorator
 import json
 from .forms import GroupForm
+from .utils import generate_verification_code, send_verification_email, is_code_expired, get_user_from_jwt
+from django.utils.timezone import now
+import jwt
+from datetime import datetime, timedelta
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import ExpenseSerializer, GroupSerializer
+from django.contrib import messages
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from django.conf import settings
 
 def signup_view(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)  # Log in the user after successful sign-up
-            return redirect('home')
+
+            # Generate the verification code (ensure uniqueness)
+            existing_codes = CustomUser.objects.values_list('verification_code', flat=True)
+            verification_code = generate_verification_code(existing_codes)
+
+            # Save the verification code and timestamp to the user
+            user.verification_code = verification_code
+            user.verification_code_created_at = now()
+            user.save()
+
+            # Send the verification code to the user's email
+            send_verification_email(user, verification_code)
+
+            # Log in the user (optional)
+            #login(request, user)
+
+            # Inform the user that they need to verify their email
+            messages.success(request, 'Sign up successful! Please check your email for the verification code.')
+
+            # Redirect to a page that asks the user to enter the verification code
+            return redirect('verify_code') 
+        else:
+            # If form is not valid, add error messages
+            messages.error(request, 'There was an error with your sign up. Please try again.')
     else:
         form = CustomUserCreationForm()
+
     return render(request, 'signup.html', {'form': form})
 
 def login_view(request):
@@ -30,11 +65,69 @@ def login_view(request):
         form = CustomAuthenticationForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
-            login(request, user)  # Log in the user
-            return redirect('home')
+            if user.is_verified:
+                # Generate a JWT token
+                payload = {
+                    'user_id': user.id,
+                    'username': user.username,
+                    'exp': datetime.now() + timedelta(hours=1),  # Token expires in 1 hour
+                }
+                token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+
+                # Return the token in the response as JSON
+                response = JsonResponse({'token': token})
+                
+                # You can also set a cookie with the token if you prefer (optional)
+                # response.set_cookie('jwt_token', token, secure=False, httponly=True)  # Set cookie securely if in production
+                
+                login(request, user)
+                messages.success(request, 'Login successful.')
+                
+                return response  # Return token in response for frontend to store in localStorage or handle accordingly.
+            else:
+                #messages.error(request, 'Account is not verified. Please verify your email.')
+                return render(request, 'verify_code.html',)
+        else:
+            messages.error(request, 'Invalid username or password.')
+            return render(request, 'verify_code.html',)
     else:
         form = CustomAuthenticationForm()
     return render(request, 'login.html', {'form': form})
+
+
+@login_required
+def add_expense_view(request):
+    categories = Category.objects.all()
+    return render(request, "add_expense.html", {"categories": categories})
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_expense(request):
+    print(request)
+    user_data = get_user_from_jwt(request)
+    if not user_data:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    
+    # Extract the user id and use it
+    user_id = user_data['user_id']
+    user = CustomUser.objects.get(id=user_id)
+    serializer = ExpenseSerializer(data=request.data)
+    print("Serializing",serializer)
+    if serializer.is_valid():
+        group_id = serializer.validated_data.get('group_id')
+        group = Group.objects.filter(id=group_id.id, members=request.user).first()
+
+        if not group:
+            return Response(
+                {"error": "You are not a member of this group."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Save the expense with the current user as the creator
+        serializer.save(created_by=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 def logout_view(request):
     if request.method == 'POST':
@@ -44,21 +137,28 @@ def logout_view(request):
 
 
 
-@login_required
-def user_groups_api(request):
-    if request.method == 'GET':
-        # Read username from custom header
+class UserGroupsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        
+           # Get user_id from query params
         username = request.headers.get('X-Username')
-
         if not username:
-            return JsonResponse({'error': 'Username is required'}, status=400)
+            # Filter the groups based on the user_id
+            groups = Group.objects.filter(members__username=username)
+        else:
+            # If no user_id is provided, fetch all groups
+            groups = Group.objects.all()
 
-        # Fetch groups for the user
-        groups = Group.objects.filter(members__username=username)
-        group_data = [{'id': group.group_id, 'name': group.name} for group in groups]
-        return JsonResponse({'groups': group_data}, safe=False)
+        if not groups.exists():
+            return Response({'groups': []}, status=status.HTTP_200_OK)
 
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
+        # Serialize and return the list of groups
+        serializer = GroupSerializer(groups, many=True)
+        return Response({'groups': serializer.data}, status=status.HTTP_200_OK)
+
+
+    
 
 @csrf_exempt  # Allow POST requests without CSRF token for API (use cautiously in production)
 def home_view(request):
@@ -76,58 +176,49 @@ def home_view(request):
 
 
 
-from django.shortcuts import get_object_or_404, render
-from django.contrib.auth.decorators import login_required
-from .models import Group, Expense
+class GroupDetailsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, group_id):
+        print("inside group")
+        username = request.headers.get('X-Username')  # Get the username from the header
+        print("username",username)
+        # Check if username matches the authenticated user
+        if username != request.user.username:
+            return Response({'error': 'Invalid username for the authenticated user.'}, status=status.HTTP_403_FORBIDDEN)
 
-@login_required
-def group_details_api(request, group_id):
-    if request.method == 'GET':
+        print("inside group")
         # Fetch the group by ID
         group = get_object_or_404(Group, group_id=group_id)
-
+        print(group)
         # Ensure the user is a member of the group
-        if not group.members.filter(id=request.user.id).exists():
+        if not group.members.filter(username=username).exists():
             return JsonResponse({'error': 'You are not a member of this group'}, status=403)
 
-        # Prepare group data
-        group_data = {
-            'group_id': group.group_id,
-            'name': group.name,
-            'members': [{'username': member.username} for member in group.members.all()],
-            'created_by': group.created_by,
-        }
-
-        # Fetch related expenses for the group
-        expenses = Expense.objects.filter(category_id=group.group_id)
-        expenses_data = [
-            {
-                'amount': expense.amount,
-                'created_by': expense.created_by.username,
-            }
-            for expense in expenses
-        ]
+        # Serialize group details
+        group_serializer = GroupSerializer(group)
+        group_data = group_serializer.data
+        group_data['members'] = [{'username': member.username} for member in group.members.all()]
+        print(group_data)
+        # Fetch and serialize expenses
+        expenses = Expense.objects.filter(category_id=group_id)
+        expense_serializer = ExpenseSerializer(expenses, many=True)
 
         # Get users from the same college as the current user
         current_user_college = request.user.college
         available_members = CustomUser.objects.filter(college=current_user_college).exclude(id=request.user.id)
-
-        # Prepare the list of users from the same college to populate in the dropdown
         available_members_data = [{'username': member.username} for member in available_members]
 
-        # Combine group, expense, and available members data
-        context = {
+        return Response({
             'group': group_data,
-            'expenses': expenses_data,
+            'expenses': expense_serializer.data,
             'available_members': available_members_data,
-            'user':request.user  # Add available members to context
-        }
+        }, status=status.HTTP_200_OK)
 
-        return render(request, 'group_details.html', context)
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-
+@login_required
+def group_details_template(request, group_id):
+    return render(request, 'group_details.html', {'group_id': group_id})
 
 @login_required
 def add_member_to_group(request, group_id):
@@ -161,111 +252,64 @@ def add_member_to_group(request, group_id):
             return JsonResponse({'error': 'User not found'}, status=404)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+def verify_code(request):
+    if request.method == 'POST':
+        email = request.POST['email']
+        code = request.POST['code']
 
+        # Get the user by email
+        user = CustomUser.objects.filter(email=email).first()
 
-# Views for Category
-class CategoryListView(ListView):
-    model = Category
-    template_name = 'category_list.html'
-    context_object_name = 'categories'
+        if user:
+            # Check if the verification code is correct and the code is not expired
+            if user.verification_code == code:
+                # Check if the verification code has expired (let's say it expires in 1 hour)
+                expiration_time = user.verification_code_created_at + timedelta(hours=1)
+                if now() > expiration_time:
+                    messages.error(request, 'Verification code has expired. Please request a new code.')
+                    user.delete()
+                    return redirect('signup')  # Redirect to signup to generate a new code
 
+                # If the code is valid and not expired, verify the user
+                user.is_verified = True
+                user.verification_code = None  # Clear the code
+                user.verification_code_created_at = None  # Clear the timestamp
+                user.save()
 
-class CategoryCreateView(CreateView):
-    model = Category
-    template_name = 'category_form.html'
-    fields = ['name']
-    success_url = reverse_lazy('category_list')
+                messages.success(request, 'Verification successful. You are now verified.')
+                return redirect('home')  # Redirect to the home page or dashboard
+            else:
+                messages.error(request, 'Invalid verification code. Please try again.')
+        else:
+            messages.error(request, 'User with this email does not exist.')
 
+    return render(request, 'verify_code.html')
 
-class CategoryUpdateView(UpdateView):
-    model = Category
-    template_name = 'category_form.html'
-    fields = ['name']
-    success_url = reverse_lazy('category_list')
+def resend_code(request):
+    if request.method == 'POST':
+        # Get the email entered by the user
+        email = request.POST.get('email')
 
+        # Look for the user in the database by email
+        user = CustomUser.objects.filter(email=email).first()
 
-class CategoryDeleteView(DeleteView):
-    model = Category
-    template_name = 'category_confirm_delete.html'
-    success_url = reverse_lazy('category_list')
+        if user:
+            # Check if the user has a verification code already
+            # Generate a new verification code
+            existing_codes = CustomUser.objects.values_list('verification_code', flat=True)
+            verification_code = generate_verification_code(existing_codes)
 
+            # Save the new verification code and timestamp to the user
+            user.verification_code = verification_code
+            user.verification_code_created_at = now()  # Save the current timestamp
 
-# Views for Expense
-class ExpenseListView(ListView):
-    model = Expense
-    template_name = 'expense_list.html'
-    context_object_name = 'expenses'
+            # Send the verification code to the user's email
+            send_verification_email(user, verification_code)
 
+            # Provide feedback to the user
+            messages.success(request, 'A new verification code has been sent to your email.')
+            return redirect('verify_code')  # Redirect back to the verification page
+        else:
+            messages.error(request, 'No user found with this email.')
 
-class ExpenseCreateView(CreateView):
-    model = Expense
-    template_name = 'expense_form.html'
-    fields = ['amount', 'category', 'split_type', 'date', 'receipt_image', 'created_by']
-    success_url = reverse_lazy('expense_list')
-
-
-class ExpenseUpdateView(UpdateView):
-    model = Expense
-    template_name = 'expense_form.html'
-    fields = ['amount', 'category', 'split_type', 'date', 'receipt_image', 'created_by']
-    success_url = reverse_lazy('expense_list')
-
-
-class ExpenseDeleteView(DeleteView):
-    model = Expense
-    template_name = 'expense_confirm_delete.html'
-    success_url = reverse_lazy('expense_list')
-
-
-# Views for Group
-class GroupListView(ListView):
-    model = Group
-    template_name = 'group_list.html'
-    context_object_name = 'groups'
-
-
-class GroupCreateView(CreateView):
-    model = Group
-    template_name = 'group_form.html'
-    fields = ['group_id','name', 'members']
-    success_url = reverse_lazy('group_list')
-
-
-class GroupUpdateView(UpdateView):
-    model = Group
-    template_name = 'group_form.html'
-    fields = ['name', 'members']
-    success_url = reverse_lazy('group_list')
-
-
-class GroupDeleteView(DeleteView):
-    model = Group
-    template_name = 'group_confirm_delete.html'
-    success_url = reverse_lazy('group_list')
-
-
-# Views for Settlement
-class SettlementListView(ListView):
-    model = Settlement
-    template_name = 'settlement_list.html'
-    context_object_name = 'settlements'
-
-
-class SettlementCreateView(CreateView):
-    model = Settlement
-    template_name = 'settlement_form.html'
-    fields = ['payment_status', 'settlement_method', 'due_date', 'group']
-    success_url = reverse_lazy('settlement_list')
-
-
-class SettlementUpdateView(UpdateView):
-    model = Settlement
-    template_name = 'settlement_form.html'
-    fields = ['payment_status', 'settlement_method', 'due_date', 'group']
-    success_url = reverse_lazy('settlement_list')
-
-
-class SettlementDeleteView(DeleteView):
-    model = Settlement
-    template_name = 'settlement_confirm_delete.html'
-    success_url = reverse_lazy('settlement_list')
+    return render(request, 'resend_code.html')

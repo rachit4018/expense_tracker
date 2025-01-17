@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resend Verification Code</title>
+</head>
+<body>
+    <h1>Resend Verification Code</h1>
+
+    <form method="POST">
+        {% csrf_token %}
+        <p>
+            <label for="email">Enter your email address:</label>
+            <input type="email" id="email" name="email" required>
+        </p>
+        <button type="submit">Resend Code</button>
+    </form>
+
+    {% if messages %}
+        <div>
+            {% for message in messages %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <p><a href="{% url 'verify_code' %}">Back to verification page</a></p>
+</body>
+</html>

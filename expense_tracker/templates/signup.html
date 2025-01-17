@@ -12,6 +12,20 @@
         {{ form.as_p }}
         <button type="submit">Sign Up</button>
     </form>
+
     <p>Already have an account? <a href="{% url 'login' %}">Log in</a></p>
+
+    <!-- Success/Info Message -->
+    {% if messages %}
+        <div>
+            {% for message in messages %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    <p>
+        After signing up, please check your email for the verification code. If you don't see the email, check your spam folder.
+    </p>
 </body>
 </html>

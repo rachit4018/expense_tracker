@@ -7,6 +7,10 @@ class CustomUser(AbstractUser):
     college = models.CharField(max_length=255)
     semester = models.IntegerField(default=1)
     default_payment_methods = models.CharField(max_length=255, blank=True)
+    jwt_token = models.CharField(max_length=1024, blank=True, null=True)
+    verification_code_created_at = models.DateTimeField(blank=True, null=True)
+    verification_code = models.CharField(max_length=6, blank=True, null=True)  # To store the verification code
+    is_verified = models.BooleanField(default=False)
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)

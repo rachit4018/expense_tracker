@@ -7,101 +7,102 @@
     <style>
         body {
             font-family: Arial, sans-serif;
+            margin: 20px;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
+        h1, h2 {
+            color: #333;
         }
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border: 1px solid #ddd;
+        ul {
+            list-style: none;
+            padding: 0;
         }
-        th {
-            background-color: #f2f2f2;
+        ul li {
+            margin: 5px 0;
         }
-        h2, h3 {
-            margin-top: 20px;
-        }
-        .back-button {
-            margin-top: 20px;
-        }
-        .error {
-            color: red;
+        select {
+            margin: 10px 0;
+            padding: 5px;
         }
     </style>
 </head>
 <body>
     <h1>Group Details</h1>
-
-    {% if group %}
-        <h2>Group: {{ group.name }}</h2>
-        <h3>Created By: {{ group.created_by }}</h3>
-        <h3>Members:</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Username</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for member in group.members %}
-                    <tr>
-                        <td>{{ member.username }}</td>
-                    </tr>
-                    
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <h3>Expenses:</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Amount</th>
-                    <th>Created By</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if expenses %}
-                    {% for expense in expenses %}
-                        <tr>
-                            <td>{{ expense.amount }}</td>
-                            </td>
-                            <td>{{ expense.created_by }}</td>
-                        </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="6">No expenses found for this group.</td>
-                    </tr>
-                {% endif %}
-            </tbody>
-        </table>
-        {% if group.created_by == user %}
-        <div class="add-member-form">
-            <h3>Add Member to Group:</h3>
-            <form method="post" action="{% url 'add_member' group_id=group.group_id %}">
-                {% csrf_token %}
-                <label for="username">Select Member:</label>
-                <select name="username" id="username" required>
-                    {% for member in available_members %}
-                        <option value="{{ member.username }}">{{ member.username }}</option>
-                    {% empty %}
-                        <option value="">No users available from the same college.</option>
-                    {% endfor %}
-                </select>
-                <button type="submit">Add Member</button>
-            </form>
-        </div>
-        {% endif %}
-    {% else %}
-        <p class="error">Error: Group not found or you are not a member of this group.</p>
-    {% endif %}
-
-    <div class="back-button">
-        <a href="{% url 'home' %}">Back to Home</a>
+    <div id="group-details">
+        <p>Loading group details...</p>
     </div>
+
+    <h2>Expenses</h2>
+    <ul id="expenses">
+        <li>Loading expenses...</li>
+    </ul>
+
+    <h2>Add Members</h2>
+    <select id="available-members">
+        <option>Loading available members...</option>
+    </select>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const groupId = "{{ group_id|escapejs }}"; // Group ID passed from the Django template
+            const username = "{{ user.username|escapejs }}"; // Authenticated username from Django
+            const apiUrl = `/expense_tracker/groups/api/${groupId}/`; // API endpoint for group details
+            console.log(apiUrl);
+            fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Username': username, // Pass username in custom header
+                },
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch data: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(data);
+                const groupDetailsElement = document.getElementById('group-details');
+                groupDetailsElement.innerHTML = `
+                    <p><strong>Group Name:</strong> ${data.group.name}</p>
+                    <p><strong>Created By:</strong> ${data.group.created_by}</p>
+                    <p><strong>Members:</strong></p>
+                    <ul>${data.group.members.map(member => `<li>${member.username}</li>`).join('')}</ul>
+                `;
+    
+                const expensesElement = document.getElementById('expenses');
+                expensesElement.innerHTML = '';
+                if (data.expenses.length > 0) {
+                    data.expenses.forEach(expense => {
+                        const li = document.createElement('li');
+                        li.textContent = `Amount: ${expense.amount}, Created by: ${expense.created_by}`;
+                        expensesElement.appendChild(li);
+                    });
+                } else {
+                    expensesElement.innerHTML = '<li>No expenses found.</li>';
+                }
+    
+                const membersDropdown = document.getElementById('available-members');
+                membersDropdown.innerHTML = '';
+                if (data.available_members.length > 0) {
+                    data.available_members.forEach(member => {
+                        const option = document.createElement('option');
+                        option.value = member.username;
+                        option.textContent = member.username;
+                        membersDropdown.appendChild(option);
+                    });
+                } else {
+                    membersDropdown.innerHTML = '<option>No available members.</option>';
+                }
+            })
+            .catch(error => {
+                console.error("Error in fetch:", error);
+                document.getElementById('group-details').innerHTML = '<p>Error loading group details.</p>';
+                document.getElementById('expenses').innerHTML = '<li>Error loading expenses.</li>';
+                document.getElementById('available-members').innerHTML = '<option>Error loading available members.</option>';
+            });
+        });
+    </script>
+    
 </body>
 </html>

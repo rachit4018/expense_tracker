@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
 
@@ -8,27 +9,17 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
 
-    path('api/groups/', views.user_groups_api, name='user-groups-api'),
-    path('api/groups/<int:group_id>/', views.group_details_api, name='group-details-api'),
+    
+    path('api/groups/', views.UserGroupsAPIView.as_view(), name='user_groups_api'),
+    path('groups/api/<int:group_id>/', views.GroupDetailsAPIView.as_view(), name='group_details'),
+    path('groups/<int:group_id>/', views.group_details_template, name='group_details_template'),
     path('group/<int:group_id>/add_member/', views.add_member_to_group, name='add_member'),
+    path('resend_code/', views.resend_code, name='resend_code'),
 
-    path('categories/', views.CategoryListView.as_view(), name='category_list'),
-    path('category/create/', views.CategoryCreateView.as_view(), name='category_create'),
-    path('category/<int:pk>/edit/', views.CategoryUpdateView.as_view(), name='category_edit'),
-    path('category/<int:pk>/delete/', views.CategoryDeleteView.as_view(), name='category_delete'),
+    path('verify_code/', views.verify_code, name='verify_code'),
+    path('expense/add/', views.add_expense_view, name='add_expense'),
+    path('expense/add/add_expense_api', views.add_expense, name='add_expense_api'),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
-    path('expenses/', views.ExpenseListView.as_view(), name='expense_list'),
-    path('expense/create/', views.ExpenseCreateView.as_view(), name='expense_create'),
-    path('expense/<int:pk>/edit/', views.ExpenseUpdateView.as_view(), name='expense_edit'),
-    path('expense/<int:pk>/delete/', views.ExpenseDeleteView.as_view(), name='expense_delete'),
-
-    path('groups/', views.GroupListView.as_view(), name='group_list'),
-    path('group/create/', views.GroupCreateView.as_view(), name='group_create'),
-    path('group/<int:pk>/edit/', views.GroupUpdateView.as_view(), name='group_edit'),
-    path('group/<int:pk>/delete/', views.GroupDeleteView.as_view(), name='group_delete'),
-
-    path('settlements/', views.SettlementListView.as_view(), name='settlement_list'),
-    path('settlement/create/', views.SettlementCreateView.as_view(), name='settlement_create'),
-    path('settlement/<int:pk>/edit/', views.SettlementUpdateView.as_view(), name='settlement_edit'),
-    path('settlement/<int:pk>/delete/', views.SettlementDeleteView.as_view(), name='settlement_delete'),
 ]

@@ -31,14 +31,16 @@
     <script>
         // Function to fetch user groups
         function fetchUserGroups() {
-            const username = "{{ user.username }}"; // Django passes the username to the template
+            const groupsUrl = "{% url 'user_groups_api' %}"; // API endpoint for fetching groups
+            const username = "{{ user.username }}"; // Authenticated username from Django
     
-            fetch('api/groups/', {
+            fetch(groupsUrl, { 
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
-                    'X-Username': username, // Custom header to send the username
+                    'X-Username': username,
                 },
+                credentials: 'include', // Include cookies for session-based authentication
             })
             .then(response => {
                 if (!response.ok) {
@@ -50,11 +52,12 @@
                 const groupList = document.getElementById('group-list');
                 groupList.innerHTML = ''; // Clear existing list
     
-                if (data.groups.length > 0) {
+                if (data.groups && data.groups.length > 0) {
                     data.groups.forEach(group => {
                         const li = document.createElement('li');
                         const groupLink = document.createElement('a');
-                        groupLink.href = `api/groups/${group.id}/`; // Linking to the group details page
+                        groupLink.href = `groups/${group.group_id}/`;
+                         // Correctly link to the group details template
                         groupLink.textContent = group.name;
                         li.appendChild(groupLink);
                         groupList.appendChild(li);

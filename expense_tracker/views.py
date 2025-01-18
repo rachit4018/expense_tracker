@@ -144,14 +144,13 @@ class UserGroupsAPIView(APIView):
            # Get user_id from query params
         username = request.headers.get('X-Username')
         if not username:
-            # Filter the groups based on the user_id
-            groups = Group.objects.filter(members__username=username)
-        else:
-            # If no user_id is provided, fetch all groups
-            groups = Group.objects.all()
+            return Response({'error': 'Authentication required to fetch groups.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Fetch groups where the user is a member
+        groups = Group.objects.filter(members__username=username)
 
         if not groups.exists():
-            return Response({'groups': []}, status=status.HTTP_200_OK)
+            return Response({'message': 'You are not a member of any group.', 'groups': []}, status=status.HTTP_200_OK)
 
         # Serialize and return the list of groups
         serializer = GroupSerializer(groups, many=True)
@@ -220,21 +219,27 @@ class GroupDetailsAPIView(APIView):
 def group_details_template(request, group_id):
     return render(request, 'group_details.html', {'group_id': group_id})
 
-@login_required
-def add_member_to_group(request, group_id):
-    if request.method == 'POST':
+class AddMemberAPIView(APIView):
+    """
+    API endpoint to add a member to a group.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, group_id):
+        # Debug the incoming request
+        print(f"Request data: {request.data}")
+        
         # Fetch the group by ID
         group = get_object_or_404(Group, group_id=group_id)
 
         # Ensure the user is the creator of the group
         if group.created_by != request.user:
-            return JsonResponse({'error': 'Only the group creator can add members'}, status=403)
+            return Response({'error': 'Only the group creator can add members'}, status=status.HTTP_403_FORBIDDEN)
 
-        # Get the username from the form submission
-        username = request.POST.get('username')
-
+        # Get the username from the request data
+        username = request.data.get('username')
         if not username:
-            return JsonResponse({'error': 'Username is required'}, status=400)
+            return Response({'error': 'Username is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             # Find the user by username
@@ -242,16 +247,17 @@ def add_member_to_group(request, group_id):
 
             # Ensure the user is not already a member
             if user_to_add in group.members.all():
-                return JsonResponse({'error': 'User is already a member of the group'}, status=400)
+                return Response({'error': 'User is already a member of the group'}, status=status.HTTP_400_BAD_REQUEST)
 
             # Add the user to the group
             group.members.add(user_to_add)
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
-        
-        except CustomUser.DoesNotExist:
-            return JsonResponse({'error': 'User not found'}, status=404)
+            return Response({'message': 'Member added successfully'}, status=status.HTTP_200_OK)
 
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+        except CustomUser.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 def verify_code(request):
     if request.method == 'POST':
         email = request.POST['email']
@@ -259,7 +265,7 @@ def verify_code(request):
 
         # Get the user by email
         user = CustomUser.objects.filter(email=email).first()
-
+        print(user)
         if user:
             # Check if the verification code is correct and the code is not expired
             if user.verification_code == code:

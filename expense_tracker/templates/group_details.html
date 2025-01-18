@@ -23,6 +23,17 @@
             margin: 10px 0;
             padding: 5px;
         }
+        button {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -40,13 +51,19 @@
     <select id="available-members">
         <option>Loading available members...</option>
     </select>
+    <button id="add-member-button">Add Member</button> </br>
+    <button id="home-button"><a href="{% url 'home'%}">Home</a></button>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const groupId = "{{ group_id|escapejs }}"; // Group ID passed from the Django template
             const username = "{{ user.username|escapejs }}"; // Authenticated username from Django
             const apiUrl = `/expense_tracker/groups/api/${groupId}/`; // API endpoint for group details
-            console.log(apiUrl);
+            const addMemberUrl = `/expense_tracker/group/${groupId}/add_member/`; // API endpoint to add members
+
+            console.log("Fetching group details from:", apiUrl);
+
+            // Fetch group details
             fetch(apiUrl, {
                 method: 'GET',
                 headers: {
@@ -62,6 +79,8 @@
             })
             .then(data => {
                 console.log(data);
+
+                // Populate group details
                 const groupDetailsElement = document.getElementById('group-details');
                 groupDetailsElement.innerHTML = `
                     <p><strong>Group Name:</strong> ${data.group.name}</p>
@@ -69,7 +88,8 @@
                     <p><strong>Members:</strong></p>
                     <ul>${data.group.members.map(member => `<li>${member.username}</li>`).join('')}</ul>
                 `;
-    
+
+                // Populate expenses
                 const expensesElement = document.getElementById('expenses');
                 expensesElement.innerHTML = '';
                 if (data.expenses.length > 0) {
@@ -81,7 +101,8 @@
                 } else {
                     expensesElement.innerHTML = '<li>No expenses found.</li>';
                 }
-    
+
+                // Populate available members dropdown
                 const membersDropdown = document.getElementById('available-members');
                 membersDropdown.innerHTML = '';
                 if (data.available_members.length > 0) {
@@ -101,8 +122,42 @@
                 document.getElementById('expenses').innerHTML = '<li>Error loading expenses.</li>';
                 document.getElementById('available-members').innerHTML = '<option>Error loading available members.</option>';
             });
+
+            // Add member event
+            document.getElementById('add-member-button').addEventListener('click', () => {
+                const selectedMember = document.getElementById('available-members').value;
+
+                if (selectedMember === 'Loading available members...' || !selectedMember) {
+                    alert('Please select a valid member.');
+                    return;
+                }
+
+                fetch(addMemberUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Username': username, // Pass username in custom header
+                        'X-CSRFToken': '{{ csrf_token }}', // Pass CSRF token if required
+                    },
+                    body: JSON.stringify({ username: selectedMember }),
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to add member: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    alert('Member added successfully!');
+                    console.log("Member Added:", data);
+                    location.reload(); // Reload the page to fetch updated details
+                })
+                .catch(error => {
+                    console.error("Error adding member:", error);
+                    alert('Failed to add member. Please try again.');
+                });
+            });
         });
     </script>
-    
 </body>
 </html>

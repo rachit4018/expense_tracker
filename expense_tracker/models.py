@@ -2,10 +2,12 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 from datetime import datetime
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django import forms
 
 class CustomUser(AbstractUser):
     college = models.CharField(max_length=255)
-    semester = models.IntegerField(default=1)
+    semester = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(8)])
     default_payment_methods = models.CharField(max_length=255, blank=True)
     jwt_token = models.CharField(max_length=1024, blank=True, null=True)
     verification_code_created_at = models.DateTimeField(blank=True, null=True)

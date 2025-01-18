@@ -4,16 +4,16 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
 
-    path('', views.home_view, name='home'),
+    path('home/', views.home_view, name='home'),
     path('signup/', views.signup_view, name='signup'),
-    path('login/', views.login_view, name='login'),
+    path('', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
 
     
     path('api/groups/', views.UserGroupsAPIView.as_view(), name='user_groups_api'),
     path('groups/api/<int:group_id>/', views.GroupDetailsAPIView.as_view(), name='group_details'),
-    path('groups/<int:group_id>/', views.group_details_template, name='group_details_template'),
-    path('group/<int:group_id>/add_member/', views.add_member_to_group, name='add_member'),
+    path('home/groups/<int:group_id>/', views.group_details_template, name='group_details_template'),
+    path('group/<int:group_id>/add_member/', views.AddMemberAPIView.as_view(), name='add_member'),
     path('resend_code/', views.resend_code, name='resend_code'),
 
     path('verify_code/', views.verify_code, name='verify_code'),

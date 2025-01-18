@@ -39,7 +39,7 @@
                     // Store the token in localStorage
                     localStorage.setItem('access_token', data.token);
                     console.log("Token saved:", data.token);
-                    window.location.href = '/expense_tracker/'; // Redirect to home page or any other page
+                    window.location.href = '/expense_tracker/home'; // Redirect to home page or any other page
                 } else {
                     console.error('Login failed', data);
                     alert('Login failed. Please check your credentials.');

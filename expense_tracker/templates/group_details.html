@@ -34,6 +34,9 @@
         button:hover {
             background-color: #0056b3;
         }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -47,12 +50,17 @@
         <li>Loading expenses...</li>
     </ul>
 
-    <h2>Add Members</h2>
-    <select id="available-members">
-        <option>Loading available members...</option>
-    </select>
-    <button id="add-member-button">Add Member</button> </br>
-    <button id="home-button"><a href="{% url 'home'%}">Home</a></button>
+    <!-- Add Members Section (Hidden by Default) -->
+    <div id="add-member-section" class="hidden">
+        <h2>Add Members</h2>
+        <select id="available-members">
+            <option>Loading available members...</option>
+        </select>
+        <button id="add-member-button">Add Member</button>
+    </div>
+    
+    <br />
+    <button id="home-button"><a href="{% url 'home' %}">Home</a></button>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -102,18 +110,24 @@
                     expensesElement.innerHTML = '<li>No expenses found.</li>';
                 }
 
-                // Populate available members dropdown
-                const membersDropdown = document.getElementById('available-members');
-                membersDropdown.innerHTML = '';
-                if (data.available_members.length > 0) {
-                    data.available_members.forEach(member => {
-                        const option = document.createElement('option');
-                        option.value = member.username;
-                        option.textContent = member.username;
-                        membersDropdown.appendChild(option);
-                    });
-                } else {
-                    membersDropdown.innerHTML = '<option>No available members.</option>';
+                // Check if the current user is the creator of the group
+                if (data.group.created_by === username) {
+                    const addMemberSection = document.getElementById('add-member-section');
+                    addMemberSection.classList.remove('hidden'); // Show the "Add Members" section
+
+                    // Populate available members dropdown
+                    const membersDropdown = document.getElementById('available-members');
+                    membersDropdown.innerHTML = '';
+                    if (data.available_members.length > 0) {
+                        data.available_members.forEach(member => {
+                            const option = document.createElement('option');
+                            option.value = member.username;
+                            option.textContent = member.username;
+                            membersDropdown.appendChild(option);
+                        });
+                    } else {
+                        membersDropdown.innerHTML = '<option>No available members.</option>';
+                    }
                 }
             })
             .catch(error => {

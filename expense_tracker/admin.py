@@ -32,7 +32,7 @@ class GroupAdmin(admin.ModelAdmin):
 
 # Settlement admin configuration
 class SettlementAdmin(admin.ModelAdmin):
-    list_display = ('id', 'payment_status', 'settlement_method', 'due_date', 'group')
+    list_display = ('id', 'payment_status', 'settlement_method', 'due_date', 'group', 'amount','user')
     list_filter = ('payment_status', 'settlement_method', 'group')
     search_fields = ('settlement_method', 'group__name')
     ordering = ('due_date',)

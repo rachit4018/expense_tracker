@@ -22,7 +22,7 @@ class Category(models.Model):
 class Expense(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
-    split_type = models.CharField(max_length=50, choices=[("equal", "Equal"), ("percentage", "Percentage")])
+    split_type = models.CharField(max_length=50, choices=[("equal", "Equal")])
     date = models.DateField(default=datetime.now)
     receipt_image = models.ImageField(upload_to="receipts/", blank=True, null=True)
     created_by = models.ForeignKey(
@@ -49,7 +49,13 @@ class Group(models.Model):
         return self.name
 
 class Settlement(models.Model):
-    payment_status = models.CharField(max_length=50, choices=[("pending", "Pending"), ("completed", "Completed")])
+    PAYMENT_STATUS_PENDING = 'Pending'
+    PAYMENT_STATUS_COMPLETED = 'Completed'
+    PAYMENT_STATUS_CHOICES = [
+        (PAYMENT_STATUS_PENDING, 'Pending'),
+        (PAYMENT_STATUS_COMPLETED, 'Completed')
+    ]
+    payment_status = models.CharField(max_length=50, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING)
     settlement_method = models.CharField(max_length=50, blank=True)
     due_date = models.DateField()
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

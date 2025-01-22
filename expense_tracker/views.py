@@ -25,6 +25,8 @@ from django.contrib import messages
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
+from django.db import transaction
+from dateutil.relativedelta import relativedelta
 
 def signup_view(request):
     if request.method == 'POST':
@@ -111,6 +113,44 @@ class AddExpenseAPIView(APIView):
     API View to handle adding an expense to a specific group.
     """
     permission_classes = [IsAuthenticated]
+    def expense_splitter(self,amount, split_type, group_id):
+        try:
+        # Fetch the group
+            group = Group.objects.prefetch_related('members').get(group_id=group_id)
+            members = group.members.all()
+            member_count = len(members)
+
+            if member_count == 0:
+                raise ValidationError("Group has no members to split the expense.")
+
+            if split_type == 'equal':
+                split_amount = amount / member_count
+                due_date = datetime.now() + relativedelta(months=1)
+
+                with transaction.atomic():  # Ensures all settlements are created or none
+                    for member in members:
+                        Settlement.objects.create(
+                        amount=split_amount,
+                        payment_status="Pending",
+                        due_date=due_date,
+                        user=member,
+                        group=group
+                    )
+                print(f"Successfully split amount {amount} equally among {member_count} members.")
+                return True
+
+            else:
+                raise ValidationError("Unsupported split type. Only 'equal' is supported.")
+
+        except ObjectDoesNotExist:
+            print(f"Error: Group with ID {group_id} does not exist.")
+            return False
+        except ValidationError as ve:
+            print(f"Validation Error: {ve}")
+            return False
+        except Exception as e:
+            print(f"Unexpected Error: {e}")
+            return False
 
     def post(self, request, group_id):
         user = request.user
@@ -126,16 +166,32 @@ class AddExpenseAPIView(APIView):
 
         if serializer.is_valid():
             print("Serializer Validated Data:", serializer.validated_data)
+            amount = serializer.validated_data['amount']
+            split_type = serializer.validated_data['split_type']
             # Save the expense with additional fields
             serializer.save(created_by=user, group_id=group)
             print("Added Expense Successfully")
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+            print("Added Expense Successfully")
+
+            # Call the expense_splitter function
+            success = self.expense_splitter(amount, split_type, group_id)
+
+            if success:
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                return Response(
+                    {"error": "Failed to split the expense. Check the logs for details."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
         # Return errors if serializer is invalid
         print("Serializer Errors:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        
+
 def logout_view(request):
     if request.method == 'POST':
         logout(request)

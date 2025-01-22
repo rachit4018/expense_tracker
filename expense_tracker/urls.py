@@ -17,8 +17,8 @@ urlpatterns = [
     path('resend_code/', views.resend_code, name='resend_code'),
 
     path('verify_code/', views.verify_code, name='verify_code'),
-    path('expense/add/', views.add_expense_view, name='add_expense'),
-    path('expense/add/add_expense_api', views.add_expense, name='add_expense_api'),
+    path('expense/add/<int:group_id>', views.add_expense_view, name='add_expense'),
+    path('expense/add_expense_api/<int:group_id>', views.AddExpenseAPIView.as_view(), name='add_expense_api'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 

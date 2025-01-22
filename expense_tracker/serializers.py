@@ -12,6 +12,10 @@ class ExpenseSerializer(serializers.ModelSerializer):
         model = Expense
         fields = '__all__'
 
+    def create(self, validated_data):
+        # Use validated data to create the expense
+        return Expense.objects.create(**validated_data)
+
 
 class GroupSerializer(serializers.ModelSerializer):
     class Meta:

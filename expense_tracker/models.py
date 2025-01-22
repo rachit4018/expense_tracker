@@ -16,6 +16,8 @@ class CustomUser(AbstractUser):
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    def __str__(self):
+        return self.name
 
 class Expense(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -23,7 +25,12 @@ class Expense(models.Model):
     split_type = models.CharField(max_length=50, choices=[("equal", "Equal"), ("percentage", "Percentage")])
     date = models.DateField(default=datetime.now)
     receipt_image = models.ImageField(upload_to="receipts/", blank=True, null=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='%(class)s_created_groups',
+        to_field='username'  # Specify using 'username' as the reference field
+    )
     group_id = models.ForeignKey('Group', on_delete=models.CASCADE)
 
 
@@ -47,3 +54,4 @@ class Settlement(models.Model):
     due_date = models.DateField()
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
+    amount = models.DecimalField(decimal_places=2,max_digits=10)

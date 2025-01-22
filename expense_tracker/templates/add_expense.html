@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Expense to {{ group.name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input, select, button {
+            margin-bottom: 15px;
+            padding: 8px;
+            width: 100%;
+            max-width: 400px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Add Expense to Group: {{ group.name }}</h1>
+    <form id="addExpenseForm" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <label for="amount">Amount:</label>
+        <input type="number" id="amount" name="amount" placeholder="Enter expense amount" step="0.01" required>
+    
+        <label for="category">Category:</label>
+        <select id="category" name="category" required>
+            <option value="" disabled selected>Select a category</option>
+            {% for category in categories %}
+                <option value="{{ category.id }}">{{ category.name }}</option>
+            {% endfor %}
+        </select>
+    
+        <label for="split_type">Split Type:</label>
+        <select id="split_type" name="split_type" required>
+            <option value="equal">Equal</option>
+            <option value="percentage">Percentage</option>
+        </select>
+    
+        <label for="date">Date:</label>
+        <input type="date" id="date" name="date" value="{{ today|date:'Y-m-d' }}" required>
+    
+        <label for="receipt_image">Receipt Image:</label>
+        <input type="file" id="receipt_image" name="receipt_image">
+    
+        <!-- Hidden field for current user (created_by) -->
+        <input type="hidden" id="created_by" name="created_by" value="{{ user.username }}">
+
+        <input type="hidden" id="group_id" name="group_id" value="{{ group.group_id }}">
+        <br>
+        <button type="submit">Add Expense</button>
+    </form>
+    
+    <script>
+        document.getElementById('addExpenseForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const formData = new FormData(event.target);
+            const groupId = formData.get('group_id'); // Get the group ID from the form
+            const apiUrl = `/expense_tracker/expense/add_expense_api/${groupId}`; // Correct API endpoint for this group
+
+            // Add the CSRF token to the form data
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            formData.append('csrfmiddlewaretoken', csrfToken);
+
+            fetch(apiUrl, {
+                method: 'POST',
+                body: formData, // Send the form data, including files
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to add expense');
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('Expense added successfully!');
+                console.log('Added Expense:', data);
+                location.reload(); // Reload the page to reflect the changes
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while adding the expense.');
+            });
+        });
+    </script>
+</body>
+</html>

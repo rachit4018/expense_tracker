@@ -96,39 +96,46 @@ def login_view(request):
 
 
 @login_required
-def add_expense_view(request):
+def add_expense_view(request, group_id):
+    """
+    Renders the add expense page for a specific group.
+    """
+    group = get_object_or_404(Group, group_id=group_id, members=request.user)  # Ensure user is part of the group
     categories = Category.objects.all()
-    return render(request, "add_expense.html", {"categories": categories})
+    return render(request, "add_expense.html", {"group": group, "categories": categories, "username": request.user.username})
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def add_expense(request):
-    print(request)
-    user_data = get_user_from_jwt(request)
-    if not user_data:
-        return JsonResponse({'error': 'Unauthorized'}, status=401)
-    
-    # Extract the user id and use it
-    user_id = user_data['user_id']
-    user = CustomUser.objects.get(id=user_id)
-    serializer = ExpenseSerializer(data=request.data)
-    print("Serializing",serializer)
-    if serializer.is_valid():
-        group_id = serializer.validated_data.get('group_id')
-        group = Group.objects.filter(id=group_id.id, members=request.user).first()
 
-        if not group:
-            return Response(
-                {"error": "You are not a member of this group."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
 
-        # Save the expense with the current user as the creator
-        serializer.save(created_by=request.user)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+class AddExpenseAPIView(APIView):
+    """
+    API View to handle adding an expense to a specific group.
+    """
+    permission_classes = [IsAuthenticated]
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request, group_id):
+        user = request.user
+        print("Request Data:", request.data)
 
+        # Ensure the user is a member of the group
+        group = get_object_or_404(Group, group_id=group_id, members=user)
+        print("Group Found:", group)
+
+        # Validate and deserialize request data
+        serializer = ExpenseSerializer(data=request.data)
+        print("Serializer Initialized:", serializer)
+
+        if serializer.is_valid():
+            print("Serializer Validated Data:", serializer.validated_data)
+            # Save the expense with additional fields
+            serializer.save(created_by=user, group_id=group)
+            print("Added Expense Successfully")
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        # Return errors if serializer is invalid
+        print("Serializer Errors:", serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        
 def logout_view(request):
     if request.method == 'POST':
         logout(request)
@@ -199,9 +206,10 @@ class GroupDetailsAPIView(APIView):
         group_data['members'] = [{'username': member.username} for member in group.members.all()]
         print(group_data)
         # Fetch and serialize expenses
-        expenses = Expense.objects.filter(category_id=group_id)
+        expenses = Expense.objects.filter(group_id=group_id)
+        print("expenses", expenses)
         expense_serializer = ExpenseSerializer(expenses, many=True)
-
+        print(expense_serializer.data)
         # Get users from the same college as the current user
         current_user_college = request.user.college
         available_members = CustomUser.objects.filter(college=current_user_college).exclude(id=request.user.id)

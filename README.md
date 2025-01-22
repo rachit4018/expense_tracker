@@ -52,19 +52,6 @@ A web-based application designed to help users manage and track their expenses e
 4. API Access: Use provided endpoints for programmatic interaction.
 
 ## Project Architecture
-+--------------------+        +--------------------+
-|  Client (Frontend) |        | Django Templates   |
-+--------------------+        +--------------------+
-          |                           |
-          v                           v
-+------------------------------------------------+
-|          Django REST Framework (API Layer)     |
-+------------------------------------------------+
-          |                  |
-          v                  v
-+------------------+     +-----------------------+
-| PostgreSQL (DB)  |     |  Static & Media Files |
-+------------------+     +-----------------------+
 The application is structured as follows:
 
 Frontend: HTML templates styled with CSS and JavaScript.

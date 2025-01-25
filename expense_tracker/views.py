@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import ExpenseSerializer, GroupSerializer
+from .serializers import ExpenseSerializer, GroupSerializer,SettlementSerializer
 from django.contrib import messages
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -383,3 +383,41 @@ def resend_code(request):
             messages.error(request, 'No user found with this email.')
 
     return render(request, 'resend_code.html')
+
+class SettlementAPIView(APIView):
+    """
+    API endpoint to settle expenses between members.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request,username):
+        try:
+            user = username
+            # Filter settlements for the logged-in user
+            settlements = Settlement.objects.filter(user__username=username)
+
+            if not settlements.exists():
+                return Response({"message": "No settlements found for the user."}, status=200)
+
+            # Serialize the settlement data
+            
+            serializer = SettlementSerializer(settlements, many=True)
+            print("serializer data:",serializer.data)
+            group_values = [item['group'] for item in serializer.data]
+
+            groups = Group.objects.filter(group_id__in=group_values)  # Fetch groups with the IDs
+            group_name_map = {group.group_id: group.name for group in groups}  # Map group_id to name
+        
+            # Add group name to the serializer data
+            updated_data = []
+            for item in serializer.data:
+                group_id = item['group']
+                group_name = group_name_map.get(group_id, 'Unknown')  # Get group name or default to 'Unknown'
+                item['group_name'] = group_name  # Add group_name to each item
+                updated_data.append(item)
+
+            return render(request, 'settlement.html', {'settlements': serializer.data})
+
+        except Exception as e:
+            return  messages.error(request, e)
+

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Settlements</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        .message, .error {
+            font-size: 18px;
+            color: #ff0000;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Your Settlements</h1>
+    {% if settlements %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Group</th>
+                    <th>Amount</th>
+                    <th>Payment Status</th>
+                    <th>Settlement Method</th>
+                    <th>Due Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for settlement in settlements %}
+                    <tr>
+                        <td>{{ settlement.group_name }}</td>
+                        <td>{{ settlement.amount }}</td>
+                        <td>{{ settlement.payment_status }}</td>
+                        <td>{{ settlement.settlement_method|default:"Not Specified" }}</td>
+                        <td>{{ settlement.due_date }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% elif message %}
+        <p class="message">{{ message }}</p>
+    {% elif error %}
+        <p class="error">An error occurred: {{ error }}</p>
+    {% endif %}
+</body>
+</html>

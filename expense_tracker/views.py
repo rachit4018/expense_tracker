@@ -384,7 +384,7 @@ def resend_code(request):
 
     return render(request, 'resend_code.html')
 
-class SettlementAPIView(APIView):
+# class SettlementAPIView(APIView):
     """
     API endpoint to settle expenses between members.
     """
@@ -416,8 +416,58 @@ class SettlementAPIView(APIView):
                 item['group_name'] = group_name  # Add group_name to each item
                 updated_data.append(item)
 
-            return render(request, 'settlement.html', {'settlements': serializer.data})
+            return render(request, 'settlement.html', {'settlements': serializer.data, 'username': username})
 
         except Exception as e:
             return  messages.error(request, e)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_payment_status(request, settlement_id):
+    settlement = get_object_or_404(Settlement, id=settlement_id, user=request.user)
+    data = request.data.get('payment_status')
+
+    if data not in [Settlement.PAYMENT_STATUS_PENDING, Settlement.PAYMENT_STATUS_COMPLETED]:
+        return Response({'error': 'Invalid payment status'}, status=status.HTTP_400_BAD_REQUEST)
+
+    settlement.payment_status = data
+    settlement.save()
+    return Response({'message': 'Payment status updated successfully', 'payment_status': settlement.payment_status}, status=status.HTTP_200_OK)
+
+@login_required
+def settlements_view(request, username):
+    return render(request, 'settlement.html', {'username': username})
+
+class SettlementsAPIView(APIView):
+    """
+    API View to fetch settlements for an authenticated user.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request,username):
+        username = request.headers.get('X-Username')
+
+        if not username:
+            return Response({'error': 'Username is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fetch settlements for the user
+        settlements = Settlement.objects.filter(user__username=username)
+        serializer = SettlementSerializer(settlements, many=True)
+        group_values = [item['group'] for item in serializer.data]
+
+        groups = Group.objects.filter(group_id__in=group_values)  # Fetch groups with the IDs
+        group_name_map = {group.group_id: group.name for group in groups}  # Map group_id to name
+        
+            # Add group name to the serializer data
+        updated_data = []
+        for item in serializer.data:
+            group_id = item['group']
+            group_name = group_name_map.get(group_id, 'Unknown')  # Get group name or default to 'Unknown'
+            item['group_name'] = group_name  # Add group_name to each item
+            updated_data.append(item)
+
+
+        return Response({'settlements': serializer.data}, status=status.HTTP_200_OK)
+
 

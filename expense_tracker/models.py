@@ -49,6 +49,7 @@ class Group(models.Model):
         return self.name
 
 class Settlement(models.Model):
+    id = models.AutoField(primary_key=True)
     PAYMENT_STATUS_PENDING = 'Pending'
     PAYMENT_STATUS_COMPLETED = 'Completed'
     PAYMENT_STATUS_CHOICES = [
@@ -61,3 +62,4 @@ class Settlement(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     amount = models.DecimalField(decimal_places=2,max_digits=10)
+    

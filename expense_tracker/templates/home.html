@@ -26,10 +26,8 @@
     <!-- Settlement Page Button -->
     <h2>Settlement</h2>
     
-    <form method="get" action="{% url 'settlement-view' user.username %}">
-        {% csrf_token %}
-        <button type="settlement">Settlement</button>
-    </form>
+    <button type="submit"> <a href="{% url 'settlements_view' user.username %}">Settlement</a></button>
+
 
     <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}

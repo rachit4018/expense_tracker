@@ -28,37 +28,130 @@
             color: #ff0000;
             margin-top: 20px;
         }
+        button {
+            padding: 5px 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
     </style>
 </head>
 <body>
     <h1>Your Settlements</h1>
-    {% if settlements %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Group</th>
-                    <th>Amount</th>
-                    <th>Payment Status</th>
-                    <th>Settlement Method</th>
-                    <th>Due Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for settlement in settlements %}
-                    <tr>
-                        <td>{{ settlement.group_name }}</td>
-                        <td>{{ settlement.amount }}</td>
-                        <td>{{ settlement.payment_status }}</td>
-                        <td>{{ settlement.settlement_method|default:"Not Specified" }}</td>
-                        <td>{{ settlement.due_date }}</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% elif message %}
-        <p class="message">{{ message }}</p>
-    {% elif error %}
-        <p class="error">An error occurred: {{ error }}</p>
-    {% endif %}
+    <div id="messages"></div>
+    <table>
+        <thead>
+            <tr>
+                <th>Group</th>
+                <th>Amount</th>
+                <th>Payment Status</th>
+                <th>Settlement Method</th>
+                <th>Due Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="settlements-table-body">
+            <!-- Settlements will be dynamically populated here -->
+        </tbody>
+    </table>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+ // Pass username from the template
+            const username = '{{ username|escapejs  }}';
+            const apiUrl = '/expense_tracker/settlements/api/${username}';
+    
+            fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Username': username,
+                },
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch settlements: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Fetched Settlements:", data);
+                const tableBody = document.getElementById('settlements-table-body');
+                tableBody.innerHTML = '';
+    
+                if (data.settlements && data.settlements.length > 0) {
+                    data.settlements.forEach(settlement => {
+                        const row = document.createElement('tr');
+    
+                        row.innerHTML = `
+                            <td>${settlement.group_name}</td>
+                            <td>${settlement.amount}</td>
+                            <td>${settlement.payment_status}</td>
+                            <td>${settlement.settlement_method || 'Not Specified'}</td>
+                            <td>${settlement.due_date}</td>
+                            <td>
+                                ${
+                                    settlement.payment_status === 'Pending' 
+                                    ? `<button class="mark-completed" data-id="${settlement.id}">Mark as Completed</button>`
+                                    : 'Completed'
+                                }
+                            </td>
+                        `;
+    
+                        tableBody.appendChild(row);
+                    });
+    
+                    // Attach event listeners to "Mark as Completed" buttons
+                    document.querySelectorAll('.mark-completed').forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            const settlementId = e.target.getAttribute('data-id');
+                            updatePaymentStatus(settlementId, username);
+                        });
+                    });
+                } else {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td colspan="6" style="text-align: center;">No settlements found.</td>`;
+                    tableBody.appendChild(row);
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching settlements:", error);
+                document.getElementById('messages').innerHTML = `<p class="error">Error fetching settlements. Please try again later.</p>`;
+            });
+    
+            // Update payment status
+            const updatePaymentStatus = (settlementId, username) => {
+                const updateUrl = `/expense_tracker/${settlementId}/`;
+                fetch(updateUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Username': username,
+                    },
+                    body: JSON.stringify({ payment_status: 'Completed' }),
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to update payment status');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    alert('Payment status updated successfully!');
+                    location.reload(); // Reload to fetch updated settlements
+                })
+                .catch(error => {
+                    console.error("Error updating payment status:", error);
+                    alert('Failed to update payment status. Please try again.');
+                });
+            };
+        });
+    </script>
+    
 </body>
 </html>

@@ -245,17 +245,13 @@ def home_view(request):
 class GroupDetailsAPIView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, group_id):
-        print("inside group")
         username = request.headers.get('X-Username')  # Get the username from the header
-        print("username",username)
         # Check if username matches the authenticated user
         if username != request.user.username:
             return Response({'error': 'Invalid username for the authenticated user.'}, status=status.HTTP_403_FORBIDDEN)
 
-        print("inside group")
         # Fetch the group by ID
         group = get_object_or_404(Group, group_id=group_id)
-        print(group)
         # Ensure the user is a member of the group
         if not group.members.filter(username=username).exists():
             return JsonResponse({'error': 'You are not a member of this group'}, status=403)
@@ -264,12 +260,9 @@ class GroupDetailsAPIView(APIView):
         group_serializer = GroupSerializer(group)
         group_data = group_serializer.data
         group_data['members'] = [{'username': member.username} for member in group.members.all()]
-        print(group_data)
         # Fetch and serialize expenses
         expenses = Expense.objects.filter(group_id=group_id)
-        print("expenses", expenses)
         expense_serializer = ExpenseSerializer(expenses, many=True)
-        print(expense_serializer.data)
         # Get users from the same college as the current user
         current_user_college = request.user.college
         available_members = CustomUser.objects.filter(college=current_user_college).exclude(id=request.user.id)

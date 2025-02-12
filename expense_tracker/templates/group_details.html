@@ -150,6 +150,37 @@
                 document.getElementById('expenses').innerHTML = '<li>Error loading expenses.</li>';
                 document.getElementById('available-members').innerHTML = '<option>Error loading available members.</option>';
             });
+            document.getElementById('add-member-button').addEventListener('click', () => {
+                const selectedMember = document.getElementById('available-members').value;
+                if (selectedMember === 'Loading available members...' || !selectedMember) {
+                    alert('Please select a valid member.');
+                    return;
+                }
+                fetch(addMemberUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Username': username, // Pass username in custom header
+                        'X-CSRFToken': '{{ csrf_token }}', // Pass CSRF token if required
+                    },
+                    body: JSON.stringify({ username: selectedMember }),
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to add member: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    alert('Member added successfully!');
+                    console.log("Member Added:", data);
+                    location.reload(); // Reload the page to fetch updated details
+                })
+                .catch(error => {
+                    console.error("Error adding member:", error);
+                    alert('Failed to add member. Please try again.');
+                });
+            });
         });
     </script>
 </body>

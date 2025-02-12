@@ -27,6 +27,10 @@ from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
 from django.db import transaction
 from dateutil.relativedelta import relativedelta
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.http import require_POST
+from rest_framework import generics
 
 def signup_view(request):
     if request.method == 'POST':
@@ -437,7 +441,22 @@ def update_payment_status(request, settlement_id):
 
 @login_required
 def settlements_view(request, username):
-    return render(request, 'settlement.html', {'username': username})
+    settlements = Settlement.objects.filter(user=request.user)
+    serializer = SettlementSerializer(settlements, many=True)
+    group_values = [item['group'] for item in serializer.data]
+
+    groups = Group.objects.filter(group_id__in=group_values)  # Fetch groups with the IDs
+    group_name_map = {group.group_id: group.name for group in groups}  # Map group_id to name
+        
+            # Add group name to the serializer data
+    updated_data = []
+    for item in serializer.data:
+        group_id = item['group']
+        group_name = group_name_map.get(group_id, 'Unknown')  # Get group name or default to 'Unknown'
+        item['group_name'] = group_name  # Add group_name to each item
+        updated_data.append(item)
+
+    return render(request, 'settlement.html', {'settlements': serializer.data})
 
 class SettlementsAPIView(APIView):
     """
@@ -470,4 +489,30 @@ class SettlementsAPIView(APIView):
 
         return Response({'settlements': serializer.data}, status=status.HTTP_200_OK)
 
+  # Exempt entire view from CSRF
 
+class UpdatePaymentStatusAPIView(APIView):
+    """
+    API View to update the payment status of a settlement.
+    """
+    permission_classes = [IsAuthenticated]  # Ensures user is authenticated
+
+    def post(self, request, settlementId):
+        try:
+            # Fetch the settlement belonging to the authenticated user
+            settlement = get_object_or_404(Settlement, id=settlementId, user=request.user)
+            data = request.data  # Django REST Framework automatically parses JSON
+            
+            # Validate the payment status
+            if data.get('payment_status') not in ['Pending', 'Completed']:
+                return Response({'error': "Invalid Payment Status"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Update and save
+            settlement.payment_status = data['payment_status']
+            settlement.save()
+
+            return Response({'message': "Payment status updated successfully!"}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    

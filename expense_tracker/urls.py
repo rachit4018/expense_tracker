@@ -22,7 +22,7 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('settlements/<str:username>/', views.settlements_view, name='settlements_view'),  # HTML rendering
-    path('settlements/api/<str:username>/', views.SettlementsAPIView.as_view(), name='settlements_api'),  # JSON API
-    #path('settlements/<str:username>/', views.SettlementAPIView.as_view(), name='settlement-view'),
+    # path('settlements/api/<str:username>/', views.SettlementsAPIView.as_view(), name='settlements_api'),  # JSON API
+    path('settlements/api/<int:settlementId>/', views.UpdatePaymentStatusAPIView.as_view(), name='settlement_view'),
 
 ]

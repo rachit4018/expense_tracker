@@ -25,9 +25,10 @@
         }
         .message, .error {
             font-size: 18px;
-            color: #ff0000;
             margin-top: 20px;
         }
+        .message { color: green; }
+        .error { color: red; }
         button {
             padding: 5px 10px;
             background-color: #28a745;
@@ -43,6 +44,7 @@
 <body>
     <h1>Your Settlements</h1>
     <div id="messages"></div>
+
     <table>
         <thead>
             <tr>
@@ -54,104 +56,67 @@
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody id="settlements-table-body">
-            <!-- Settlements will be dynamically populated here -->
+        <tbody>
+            {% for settlement in settlements %}
+                <tr>
+                    <td>{{ settlement.group_name }}</td>
+                    <td>{{ settlement.amount }}</td>
+                    <td id="status-{{ settlement.id }}">{{ settlement.payment_status }}</td>
+                    <td>{{ settlement.settlement_method|default:"Not Specified" }}</td>
+                    <td>{{ settlement.due_date }}</td>
+                    <td>
+                        {% if settlement.payment_status == "Pending" %}
+                            <button class="mark-completed" data-id="{{ settlement.id }}">Mark as Completed</button>
+                        {% else %}
+                            Completed
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center;">No settlements found.</td>
+                </tr>
+            {% endfor %}
         </tbody>
     </table>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-
- // Pass username from the template
-            const username = '{{ username|escapejs  }}';
-            const apiUrl = '/expense_tracker/settlements/api/${username}';
-    
-            fetch(apiUrl, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Username': username,
-                },
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch settlements: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log("Fetched Settlements:", data);
-                const tableBody = document.getElementById('settlements-table-body');
-                tableBody.innerHTML = '';
-    
-                if (data.settlements && data.settlements.length > 0) {
-                    data.settlements.forEach(settlement => {
-                        const row = document.createElement('tr');
-    
-                        row.innerHTML = `
-                            <td>${settlement.group_name}</td>
-                            <td>${settlement.amount}</td>
-                            <td>${settlement.payment_status}</td>
-                            <td>${settlement.settlement_method || 'Not Specified'}</td>
-                            <td>${settlement.due_date}</td>
-                            <td>
-                                ${
-                                    settlement.payment_status === 'Pending' 
-                                    ? `<button class="mark-completed" data-id="${settlement.id}">Mark as Completed</button>`
-                                    : 'Completed'
-                                }
-                            </td>
-                        `;
-    
-                        tableBody.appendChild(row);
-                    });
-    
-                    // Attach event listeners to "Mark as Completed" buttons
-                    document.querySelectorAll('.mark-completed').forEach(button => {
-                        button.addEventListener('click', (e) => {
-                            const settlementId = e.target.getAttribute('data-id');
-                            updatePaymentStatus(settlementId, username);
-                        });
-                    });
-                } else {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `<td colspan="6" style="text-align: center;">No settlements found.</td>`;
-                    tableBody.appendChild(row);
-                }
-            })
-            .catch(error => {
-                console.error("Error fetching settlements:", error);
-                document.getElementById('messages').innerHTML = `<p class="error">Error fetching settlements. Please try again later.</p>`;
+            const csrfToken = "{{ csrf_token }}";
+            console.log(csrfToken);
+            document.querySelectorAll('.mark-completed').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const settlementId = e.target.getAttribute('data-id');
+                    updatePaymentStatus(settlementId, e.target);
+                });
             });
-    
-            // Update payment status
-            const updatePaymentStatus = (settlementId, username) => {
-                const updateUrl = `/expense_tracker/${settlementId}/`;
-                fetch(updateUrl, {
+
+            function updatePaymentStatus(settlementId, button) {
+                fetch(`/expense_tracker/settlements/api/${settlementId}/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-Username': username,
+                        'X-CSRFToken': csrfToken,
                     },
                     body: JSON.stringify({ payment_status: 'Completed' }),
                 })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to update payment status');
-                    }
-                    return response.json();
-                })
+                .then(response => response.json())
                 .then(data => {
-                    alert('Payment status updated successfully!');
-                    location.reload(); // Reload to fetch updated settlements
+                    if (data.error) {
+                        document.getElementById('messages').innerHTML = `<p class="error">${data.error}</p>`;
+                    } else {
+                        document.getElementById(`status-${settlementId}`).innerText = "Completed";
+                        button.remove();
+                        document.getElementById('messages').innerHTML = `<p class="message">Payment status updated successfully!</p>`;
+                    }
                 })
                 .catch(error => {
                     console.error("Error updating payment status:", error);
-                    alert('Failed to update payment status. Please try again.');
+                    document.getElementById('messages').innerHTML = `<p class="error">Failed to update payment status. Please try again.</p>`;
                 });
-            };
+            }
         });
     </script>
-    
+
 </body>
 </html>

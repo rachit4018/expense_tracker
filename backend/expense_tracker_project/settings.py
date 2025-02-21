@@ -32,19 +32,19 @@ SECRET_KEY = 'django-insecure-cybavyt($!9=81-a+s)g$j%e_0o)6dc1cbt-aac^swby7$but1
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
-
+APPEND_SLASH=False
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'corsheaders',
     'rest_framework',
     'rest_auth',
     'rest_framework.authtoken',
@@ -164,9 +164,15 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'pandyarachit1525@gmail.com'
 EMAIL_HOST_PASSWORD = 'vvntzlciksvseffx'
 DEFAULT_FROM_EMAIL = 'pandyarachit1525@gmail.com'
-
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+]
 from datetime import timedelta
-
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://localhost:8000',
+      # Adjust this based on your frontend URL
+]
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
@@ -176,7 +182,7 @@ SIMPLE_JWT = {
     'SIGNING_KEY': SECRET_KEY,
 }
 CORS_ALLOW_ALL_ORIGINS = True
-
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -195,7 +201,4 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
-]
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',  # Adjust this based on your frontend URL
 ]

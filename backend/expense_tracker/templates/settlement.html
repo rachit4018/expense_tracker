@@ -93,7 +93,7 @@
 
             function updatePaymentStatus(settlementId, button) {
                 fetch(`/expense_tracker/settlements/api/${settlementId}/`, {
-                    method: 'POST',
+                    method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken,

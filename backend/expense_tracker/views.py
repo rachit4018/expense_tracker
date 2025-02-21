@@ -12,6 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import Group,CustomUser
 from django.utils.decorators import method_decorator
 import json
+from django.middleware.csrf import get_token
 from .forms import GroupForm
 from .utils import generate_verification_code, send_verification_email, is_code_expired, get_user_from_jwt
 from django.utils.timezone import now
@@ -32,6 +33,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 from rest_framework import generics
 
+@api_view(['POST'])
 def signup_view(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
@@ -57,7 +59,7 @@ def signup_view(request):
             messages.success(request, 'Sign up successful! Please check your email for the verification code.')
 
             # Redirect to a page that asks the user to enter the verification code
-            return redirect('verify_code') 
+            return Response(status =status.HTTP_201_CREATED)
         else:
             # If form is not valid, add error messages
             messages.error(request, 'There was an error with your sign up. Please try again.')
@@ -319,11 +321,14 @@ class AddMemberAPIView(APIView):
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])           
 def verify_code(request):
     if request.method == 'POST':
+        print(request.POST)
         email = request.POST['email']
         code = request.POST['code']
-
+       
         # Get the user by email
         user = CustomUser.objects.filter(email=email).first()
         print(user)
@@ -344,7 +349,7 @@ def verify_code(request):
                 user.save()
 
                 messages.success(request, 'Verification successful. You are now verified.')
-                return redirect('home')  # Redirect to the home page or dashboard
+                return Response(status =status.HTTP_200_OK)  # Redirect to the home page or dashboard
             else:
                 messages.error(request, 'Invalid verification code. Please try again.')
         else:
@@ -419,19 +424,6 @@ def resend_code(request):
             return  messages.error(request, e)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def update_payment_status(request, settlement_id):
-    settlement = get_object_or_404(Settlement, id=settlement_id, user=request.user)
-    data = request.data.get('payment_status')
-
-    if data not in [Settlement.PAYMENT_STATUS_PENDING, Settlement.PAYMENT_STATUS_COMPLETED]:
-        return Response({'error': 'Invalid payment status'}, status=status.HTTP_400_BAD_REQUEST)
-
-    settlement.payment_status = data
-    settlement.save()
-    return Response({'message': 'Payment status updated successfully', 'payment_status': settlement.payment_status}, status=status.HTTP_200_OK)
-
 @login_required
 def settlements_view(request, username):
     settlements = Settlement.objects.filter(user=request.user)
@@ -490,7 +482,7 @@ class UpdatePaymentStatusAPIView(APIView):
     """
     permission_classes = [IsAuthenticated]  # Ensures user is authenticated
 
-    def post(self, request, settlementId):
+    def patch(self, request, settlementId):
         try:
             # Fetch the settlement belonging to the authenticated user
             settlement = get_object_or_404(Settlement, id=settlementId, user=request.user)
@@ -508,4 +500,6 @@ class UpdatePaymentStatusAPIView(APIView):
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
+def csrf_token_view(request):
+    return JsonResponse({"csrfToken": get_token(request)})

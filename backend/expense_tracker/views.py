@@ -288,37 +288,45 @@ def home_view(request):
 
 class GroupDetailsAPIView(APIView):
     permission_classes = [IsAuthenticated]
+
     def get(self, request, group_id):
-        username = request.headers.get('X-Username')  # Get the username from the header
+        # Get the username from the header
+        username = request.headers.get('X-Username')
+        print(username)
+        print(request.user.username)
         # Check if username matches the authenticated user
         if username != request.user.username:
+            
             return Response({'error': 'Invalid username for the authenticated user.'}, status=status.HTTP_403_FORBIDDEN)
 
         # Fetch the group by ID
         group = get_object_or_404(Group, group_id=group_id)
+
         # Ensure the user is a member of the group
         if not group.members.filter(username=username).exists():
-            return JsonResponse({'error': 'You are not a member of this group'}, status=403)
+            return Response({'error': 'You are not a member of this group'}, status=status.HTTP_403_FORBIDDEN)
 
         # Serialize group details
         group_serializer = GroupSerializer(group)
         group_data = group_serializer.data
         group_data['members'] = [{'username': member.username} for member in group.members.all()]
+
         # Fetch and serialize expenses
         expenses = Expense.objects.filter(group_id=group_id)
         expense_serializer = ExpenseSerializer(expenses, many=True)
+
         # Get users from the same college as the current user
         current_user_college = request.user.college
         available_members = CustomUser.objects.filter(college=current_user_college).exclude(id=request.user.id)
         available_members_data = [{'username': member.username} for member in available_members]
 
+        # Return the response
         return Response({
             'group': group_data,
             'expenses': expense_serializer.data,
             'available_members': available_members_data,
         }, status=status.HTTP_200_OK)
 
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 @login_required
 def group_details_template(request, group_id):

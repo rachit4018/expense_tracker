@@ -36,43 +36,62 @@ from rest_framework import generics
 @api_view(['POST'])
 def signup_view(request):
     if request.method == 'POST':
-        form = CustomUserCreationForm(request.POST)
+        # Use request.data for JSON input
+        form = CustomUserCreationForm(request.data)
         if form.is_valid():
-            user = form.save()
+            try:
+                # Save the user
+                user = form.save(commit=False)  # Don't save yet to add additional fields
 
-            # Generate the verification code (ensure uniqueness)
-            existing_codes = CustomUser.objects.values_list('verification_code', flat=True)
-            verification_code = generate_verification_code(existing_codes)
+                # Generate the verification code (ensure uniqueness)
+                existing_codes = CustomUser.objects.values_list('verification_code', flat=True)
+                verification_code = generate_verification_code(existing_codes)
 
-            # Save the verification code and timestamp to the user
-            user.verification_code = verification_code
-            user.verification_code_created_at = now()
-            user.save()
+                # Save the verification code and timestamp to the user
+                user.verification_code = verification_code
+                user.verification_code_created_at = now()
+                user.is_verified = False  # Mark the user as unverified
+                user.save()
 
-            # Send the verification code to the user's email
-            send_verification_email(user, verification_code)
+                # Send the verification code to the user's email
+                send_verification_email(user, verification_code)
 
-            # Log in the user (optional)
-            #login(request, user)
-
-            # Inform the user that they need to verify their email
-            messages.success(request, 'Sign up successful! Please check your email for the verification code.')
-
-            # Redirect to a page that asks the user to enter the verification code
-            return Response(status =status.HTTP_201_CREATED)
+                # Return success response
+                return Response(
+                    {'message': 'Sign up successful! Please check your email for the verification code.'},
+                    status=status.HTTP_201_CREATED
+                )
+            except Exception as e:
+                # Handle any unexpected errors during signup
+                return Response(
+                    {'error': f'An error occurred during signup: {str(e)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         else:
-            # If form is not valid, add error messages
-            messages.error(request, 'There was an error with your sign up. Please try again.')
+            # If form is not valid, return form errors
+            errors = form.errors.as_json()
+            return Response(
+                {'error': 'There was an error with your signup.', 'details': errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
     else:
-        form = CustomUserCreationForm()
-
-    return render(request, 'signup.html', {'form': form})
-
+        # Handle non-POST requests (optional)
+        return Response(
+            {'error': 'Only POST requests are allowed.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+@api_view(['POST'])
 def login_view(request):
     if request.method == 'POST':
-        form = CustomAuthenticationForm(data=request.POST)
+        print("Request data:", request.data)  # Debugging: Print request data
+
+        # Use request.data for JSON input
+        form = CustomAuthenticationForm(data=request.data)
+        print("Form errors:", form.errors)  # Debugging: Print form errors
+
         if form.is_valid():
             user = form.get_user()
+
             if user.is_verified:
                 # Generate a JWT token
                 payload = {
@@ -82,25 +101,37 @@ def login_view(request):
                 }
                 token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
 
-                # Return the token in the response as JSON
-                response = JsonResponse({'token': token})
-                
-                # You can also set a cookie with the token if you prefer (optional)
-                # response.set_cookie('jwt_token', token, secure=False, httponly=True)  # Set cookie securely if in production
-                
+                # Log the user in
                 login(request, user)
-                messages.success(request, 'Login successful.')
-                
-                return response  # Return token in response for frontend to store in localStorage or handle accordingly.
+
+                # Prepare user data to return
+                user_data = {
+                    'username': user.username,
+                    'college': user.college,
+                    'semester': user.semester,
+                    'default_payment_methods': user.default_payment_methods,
+                    'token': token,  # Include the token in the response
+                }
+
+                return Response(user_data, status=status.HTTP_200_OK)
             else:
-                #messages.error(request, 'Account is not verified. Please verify your email.')
-                return render(request, 'verify_code.html',)
+                # Account is not verified
+                return Response(
+                    {'error': 'Account is not verified. Please verify your email.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
         else:
-            messages.error(request, 'Invalid username or password.')
-            return render(request, 'verify_code.html',)
+            # Invalid username or password
+            return Response(
+                {'error': 'Invalid username or password.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
     else:
-        form = CustomAuthenticationForm()
-    return render(request, 'login.html', {'form': form})
+        # Handle non-POST requests (optional)
+        return Response(
+            {'error': 'Only POST requests are allowed.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
 
 @login_required
@@ -207,23 +238,34 @@ def logout_view(request):
 
 
 class UserGroupsAPIView(APIView):
+    print("api called")
     permission_classes = [IsAuthenticated]
+
     def get(self, request):
-        
-           # Get user_id from query params
+        # Get username from headers
         username = request.headers.get('X-Username')
+        print(username)
         if not username:
-            return Response({'error': 'Authentication required to fetch groups.'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {'error': 'Authentication required to fetch groups.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
         # Fetch groups where the user is a member
         groups = Group.objects.filter(members__username=username)
 
         if not groups.exists():
-            return Response({'message': 'You are not a member of any group.', 'groups': []}, status=status.HTTP_200_OK)
+            return Response(
+                {'message': 'You are not a member of any group.', 'groups': []},
+                status=status.HTTP_200_OK
+            )
 
         # Serialize and return the list of groups
         serializer = GroupSerializer(groups, many=True)
-        return Response({'groups': serializer.data}, status=status.HTTP_200_OK)
+        return Response(
+            {'groups': serializer.data},
+            status=status.HTTP_200_OK
+        )
 
 
     
@@ -322,25 +364,33 @@ class AddMemberAPIView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['POST'])           
+@api_view(['POST'])
 def verify_code(request):
     if request.method == 'POST':
-        print(request.POST)
-        email = request.POST['email']
-        code = request.POST['code']
-       
+        # Use request.data for JSON input
+        email = request.data.get('email')
+        code = request.data.get('code')
+
+        if not email or not code:
+            return Response(
+                {'error': 'Email and verification code are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Get the user by email
         user = CustomUser.objects.filter(email=email).first()
-        print(user)
+
         if user:
-            # Check if the verification code is correct and the code is not expired
+            # Check if the verification code is correct
             if user.verification_code == code:
-                # Check if the verification code has expired (let's say it expires in 1 hour)
+                # Check if the verification code has expired (e.g., expires in 1 hour)
                 expiration_time = user.verification_code_created_at + timedelta(hours=1)
                 if now() > expiration_time:
-                    messages.error(request, 'Verification code has expired. Please request a new code.')
-                    user.delete()
-                    return redirect('signup')  # Redirect to signup to generate a new code
+                    user.delete()  # Delete the user if the code has expired
+                    return Response(
+                        {'error': 'Verification code has expired. Please sign up again.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
                 # If the code is valid and not expired, verify the user
                 user.is_verified = True
@@ -348,14 +398,25 @@ def verify_code(request):
                 user.verification_code_created_at = None  # Clear the timestamp
                 user.save()
 
-                messages.success(request, 'Verification successful. You are now verified.')
-                return Response(status =status.HTTP_200_OK)  # Redirect to the home page or dashboard
+                return Response(
+                    {'message': 'Verification successful. You are now verified.'},
+                    status=status.HTTP_200_OK
+                )
             else:
-                messages.error(request, 'Invalid verification code. Please try again.')
+                return Response(
+                    {'error': 'Invalid verification code. Please try again.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         else:
-            messages.error(request, 'User with this email does not exist.')
-
-    return render(request, 'verify_code.html')
+            return Response(
+                {'error': 'User with this email does not exist.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    else:
+        return Response(
+            {'error': 'Only POST requests are allowed.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
 def resend_code(request):
     if request.method == 'POST':

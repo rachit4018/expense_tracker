@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.http import HttpResponse,HttpResponseRedirect
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from .models import Category, Expense, Group, Settlement
+from rest_framework.permissions import AllowAny
 from django.urls import reverse_lazy
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout
@@ -81,6 +82,7 @@ def signup_view(request):
             status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def login_view(request):
     if request.method == 'POST':
         print("Request data:", request.data)  # Debugging: Print request data

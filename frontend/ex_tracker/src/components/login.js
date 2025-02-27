@@ -33,42 +33,44 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Send log
-      // in request to the backend
-      const response = await axios.post(
-        `${BASE_URL}`,  // Ensure this matches your Django login endpoint
-        formData,  // Send JSON data
-        {
-          headers: {
-            "Content-Type": "application/json",  // Use JSON content type
-            "X-CSRFToken": csrfToken,  // Include CSRF token in headers
-          },
-          withCredentials: true,  // Include credentials for session-based auth
+        // Fetch CSRF token before submitting login request
+        const csrfResponse = await axios.get(`${BASE_URL}csrf/`, { withCredentials: true });
+        const csrfToken = document.cookie
+            .split("; ")
+            .find((row) => row.startsWith("csrftoken="))
+            ?.split("=")[1];
+
+        console.log("CSRF Token:", csrfToken);
+
+        // Send login request
+        const response = await axios.post(
+            `${BASE_URL}`,  // ✅ Ensure correct endpoint
+            formData,
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken,  // ✅ Include CSRF token
+                },
+                withCredentials: true,
+            }
+        );
+
+        if (response.status === 200) {
+            // Store JWT Token
+            localStorage.setItem("token", response.data.token);
+            localStorage.setItem("user", JSON.stringify(response.data));
+
+            // Navigate to home
+            navigate("/home", { state: { user: response.data } });
+        } else {
+            setError("Invalid credentials");
         }
-      );
-
-      if (response.status === 200) {
-        // Save the JWT token in localStorage
-        localStorage.setItem("token", response.data.token);
-
-        // Save user data in localStorage (optional)
-        localStorage.setItem("user", JSON.stringify(response.data));
-
-        // Navigate to the home page with user data
-        navigate("/home", { state: { user: response.data } });
-      } else {
-        setError("Invalid credentials");
-      }
     } catch (error) {
-      if (error.response) {
-        // Handle specific error messages from the backend
-        setError(error.response.data.error || "An error occurred while logging in.");
-      } else {
-        setError("An error occurred while submitting");
-      }
-      console.error(error);
+        console.error("Login error:", error);
+        setError("An error occurred while logging in.");
     }
-  };
+};
+
 
   return (
     <div>

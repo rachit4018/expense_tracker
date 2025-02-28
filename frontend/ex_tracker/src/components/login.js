@@ -34,7 +34,6 @@ const Login = () => {
     e.preventDefault();
     try {
         // Fetch CSRF token before submitting login request
-        const csrfResponse = await axios.get(`${BASE_URL}csrf/`, { withCredentials: true });
         const csrfToken = document.cookie
             .split("; ")
             .find((row) => row.startsWith("csrftoken="))

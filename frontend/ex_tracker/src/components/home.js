@@ -70,7 +70,7 @@ const Home = () => {
 
             await axios.post(
                 `${BASE_URL}api/groups/create/`,
-                { group_name: groupName },
+                { name: groupName },
                 {
                     headers: {
                         "X-Username": user.username,
@@ -86,6 +86,7 @@ const Home = () => {
 
             // Refresh the list of groups after creation
             await fetchUserGroups();
+            navigate("/home", { state: { user: user } });
         } catch (error) {
             console.error("Error creating group:", error);
             setError("Error creating group");

@@ -15,7 +15,7 @@ class CustomAuthenticationForm(AuthenticationForm):
 class GroupForm(forms.ModelForm):
     class Meta:
         model = Group
-        fields = ['name']
+        fields = ['name','created_by']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Enter group name'}),
         }

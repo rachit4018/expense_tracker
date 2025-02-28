@@ -240,7 +240,6 @@ def logout_view(request):
 
 
 class UserGroupsAPIView(APIView):
-    print("api called")
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -294,8 +293,6 @@ class GroupDetailsAPIView(APIView):
     def get(self, request, group_id):
         # Get the username from the header
         username = request.headers.get('X-Username')
-        print(username)
-        print(request.user.username)
         # Check if username matches the authenticated user
         if username != request.user.username:
             
@@ -574,3 +571,24 @@ class UpdatePaymentStatusAPIView(APIView):
 
 def csrf_token_view(request):
     return JsonResponse({"csrfToken": get_token(request)})
+
+
+class CreateGroupAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        print("Authenticated User:", request.user)  # Debugging: Check the authenticated user
+        
+        request.data["created_by"] = request.headers.get("X-Username")
+        username = request.headers.get("X-Username")
+        user_to_add = CustomUser.objects.get(username=username)  # Add the creator to the request data
+        print("Request Data:", request.data)  # Debugging: Log the request data
+        form = GroupForm(request.data)
+        if form.is_valid():
+            group = form.save()
+
+            # Add the user to the group
+            group.members.add(user_to_add)
+            return Response({'message': 'Group created successfully.'}, status=status.HTTP_201_CREATED)
+        else:
+            print("Form Errors:", form.errors)  # Debugging: Log form errors
+            return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -174,7 +174,7 @@ const Group = () => {
             <br />
             <br />
             {/* Home Button */}
-            <button id="home-button" onClick={() => navigate("/home")}>
+            <button id="home-button" onClick={() => navigate("/home", { state: { user: user } })}>
                 Home
             </button>
         </div>

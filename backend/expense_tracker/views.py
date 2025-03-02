@@ -492,24 +492,32 @@ def resend_code(request):
             return  messages.error(request, e)
 
 
-@login_required
-def settlements_view(request, username):
-    settlements = Settlement.objects.filter(user=request.user)
-    serializer = SettlementSerializer(settlements, many=True)
-    group_values = [item['group'] for item in serializer.data]
+class SettlementsView(APIView):
+    permission_classes = [IsAuthenticated]  # Only authenticated users can access this view
 
-    groups = Group.objects.filter(group_id__in=group_values)  # Fetch groups with the IDs
-    group_name_map = {group.group_id: group.name for group in groups}  # Map group_id to name
-        
-            # Add group name to the serializer data
-    updated_data = []
-    for item in serializer.data:
-        group_id = item['group']
-        group_name = group_name_map.get(group_id, 'Unknown')  # Get group name or default to 'Unknown'
-        item['group_name'] = group_name  # Add group_name to each item
-        updated_data.append(item)
+    def get(self, request, username):
+        # Fetch settlements for the authenticated user
+        settlements = Settlement.objects.filter(user=request.user)
+        serializer = SettlementSerializer(settlements, many=True)
 
-    return render(request, 'settlement.html', {'settlements': serializer.data})
+        # Extract group IDs from the serializer data
+        group_values = [item['group'] for item in serializer.data]
+
+        # Fetch groups with the IDs
+        groups = Group.objects.filter(group_id__in=group_values)
+        group_name_map = {group.group_id: group.name for group in groups}  # Map group_id to name
+
+        # Add group name to the serializer data
+        updated_data = []
+        for item in serializer.data:
+            group_id = item['group']
+            group_name = group_name_map.get(group_id, 'Unknown')  # Get group name or default to 'Unknown'
+            item['group_name'] = group_name  # Add group_name to each item
+            updated_data.append(item)
+
+        # Return the updated data as a JSON response
+        return Response({"settlements": updated_data}, status=status.HTTP_200_OK)
+
 
 class SettlementsAPIView(APIView):
     """

@@ -27,9 +27,9 @@ const Home = () => {
                 .split("; ")
                 .find((row) => row.startsWith("csrftoken="))
                 ?.split("=")[1];
-    
+
             const token = localStorage.getItem("token"); // Get the token from local storage
-    
+
             const response = await axios.get(`${BASE_URL}api/groups/`, {
                 headers: {
                     "Authorization": `Token ${token}`, // Include the token in the headers
@@ -39,7 +39,7 @@ const Home = () => {
                 },
                 withCredentials: true,
             });
-    
+
             if (response.data.groups) {
                 setGroups(response.data.groups); // Set groups in state
             } else {
@@ -95,12 +95,17 @@ const Home = () => {
 
     // Handle Logout
     const handleLogout = async () => {
-        try{
+        try {
             navigate("/");
         } catch (error) {
             console.error("Logout failed:", error);
             setError("Logout failed");
         }
+    };
+
+    // Handle Settlements Navigation
+    const handleSettlements = () => {
+        navigate(`/settlements/${user.username}`, { state: { user: user } });
     };
 
     return (
@@ -116,13 +121,15 @@ const Home = () => {
                 {groups.length > 0 ? (
                     groups.map((group) => (
                         <li key={group.group_id}>
-                          <a href={`/groups/${group.group_id}`} // Valid href
-                onClick={(e) => {
-                    e.preventDefault(); // Prevent default navigation
-                    navigate(`/groups/${group.group_id}`,{ state: { user: user}}); 
-                            }}
+                            <a
+                                href={`/groups/${group.group_id}`} // Valid href
+                                onClick={(e) => {
+                                    e.preventDefault(); // Prevent default navigation
+                                    navigate(`/groups/${group.group_id}`, { state: { user: user } });
+                                }}
                             >
-                                {group.name}</a>
+                                {group.name}
+                            </a>
                         </li>
                     ))
                 ) : (
@@ -143,11 +150,13 @@ const Home = () => {
             </form>
 
             <h2>Settlement</h2>
-            <a href={`${BASE_URL}/settlements/${user.username}/`}>
-                <button>Go to Settlement</button>
-            </a>
+            {/* Settlements Button */}
+            <button onClick={handleSettlements}>Settlements</button>
 
-            <button onClick={handleLogout}>Logout</button>
+            {/* Logout Button */}
+            <button onClick={handleLogout} style={{ marginLeft: "10px" }}>
+                Logout
+            </button>
         </div>
     );
 };

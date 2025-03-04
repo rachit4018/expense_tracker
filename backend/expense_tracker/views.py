@@ -314,9 +314,15 @@ class GroupDetailsAPIView(APIView):
         expenses = Expense.objects.filter(group_id=group_id)
         expense_serializer = ExpenseSerializer(expenses, many=True)
 
-        # Get users from the same college as the current user
+        # Get users from the same college as the current user, excluding the current user and existing group members
         current_user_college = request.user.college
-        available_members = CustomUser.objects.filter(college=current_user_college).exclude(id=request.user.id)
+        available_members = CustomUser.objects.filter(college=current_user_college).exclude(
+            id=request.user.id  # Exclude the current user
+        ).exclude(
+            id__in=group.members.values_list('id', flat=True)  # Exclude existing group members
+        )
+
+        # Serialize available members
         available_members_data = [{'username': member.username} for member in available_members]
 
         # Return the response
@@ -340,18 +346,25 @@ class AddMemberAPIView(APIView):
     def post(self, request, group_id):
         # Debug the incoming request
         print(f"Request data: {request.data}")
-        
+        print(f"Authenticated user: {request.user.username}")
+
         # Fetch the group by ID
         group = get_object_or_404(Group, group_id=group_id)
 
         # Ensure the user is the creator of the group
         if group.created_by != request.user:
-            return Response({'error': 'Only the group creator can add members'}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {'success': False, 'error': 'Only the group creator can add members'},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         # Get the username from the request data
         username = request.data.get('username')
         if not username:
-            return Response({'error': 'Username is required'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'success': False, 'error': 'Username is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             # Find the user by username
@@ -359,17 +372,30 @@ class AddMemberAPIView(APIView):
 
             # Ensure the user is not already a member
             if user_to_add in group.members.all():
-                return Response({'error': 'User is already a member of the group'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {'success': False, 'error': 'User is already a member of the group'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             # Add the user to the group
             group.members.add(user_to_add)
-            return Response({'message': 'Member added successfully'}, status=status.HTTP_200_OK)
+            return Response(
+                {'success': True, 'message': 'Member added successfully'},
+                status=status.HTTP_200_OK
+            )
 
         except CustomUser.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'success': False, 'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 @api_view(['POST'])
 def verify_code(request):

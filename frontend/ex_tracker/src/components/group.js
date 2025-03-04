@@ -71,29 +71,41 @@ const Group = () => {
     const handleAddMember = async (selectedMember) => {
         if (!selectedMember) {
             alert("Please select a valid member.");
-            return;
+            return; // Exit early if no member is selected
         }
 
         try {
-            const response = await axios.post(
-                `${BASE_URL}group/${groupId}/add_member/`,
-                { username: selectedMember },
-                {
-                    headers: {
-                        "X-Username": username,
-                        "X-CSRFToken": document.cookie
-                            .split("; ")
-                            .find((row) => row.startsWith("csrftoken="))
-                            ?.split("=")[1],
-                    },
+            
+            const csrfToken = document.cookie
+                    .split("; ")
+                    .find((row) => row.startsWith("csrftoken="))
+                    ?.split("=")[1];
+
+                // Fetch authorization token from localStorage
+                const token = localStorage.getItem("token");
+
+                if (!token) {
+                    console.error("Authorization token not found in localStorage.");
+                    setError("Authorization token not found.");
+                    return;
                 }
-            );
+
+                // Debugging: Log tokens and headers
+                // Make the API request
+                const response = await axios.post(`${BASE_URL}group/${groupId}/add_member/`, { username: selectedMember },{
+                    headers: {
+                        "Authorization": `Token ${token}`,
+                        "X-Username": username,
+                        "X-CSRFToken": csrfToken,
+                        "Content-Type": "application/json",
+                    }, withCredentials: true,
+                });
 
             if (response.data.success) {
                 alert("Member added successfully!");
                 window.location.reload(); // Reload the page to fetch updated details
             } else {
-                setError("Failed to add member.");
+                alert("Member already exists in the group.");
             }
         } catch (error) {
             console.error("Error adding member:", error);

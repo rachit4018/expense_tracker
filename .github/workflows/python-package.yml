@@ -1,40 +1,42 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
 name: Python package
 
-on:
-  push:
-    branches: [ "dev" ]
-  pull_request:
-    branches: [ "dev" ]
+on: [push, pull_request]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.x'
+
+    - name: Clear pip cache
+      run: pip cache purge
+
+    - name: Check internet connectivity
+      run: |
+        if ! ping -c 1 google.com; then
+          echo "No internet connection"
+          exit 1
+        fi
+
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        python -m pip install flake8==5.0.4 pycodestyle==2.12.1 pyflakes==3.2.0 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        retries=3
+        for i in $(seq 1 $retries); do
+          pip install -r requirements.txt && break || sleep 10
+        done
+
     - name: Lint with flake8
       run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        pip install flake8
+        flake8 .
+
     - name: Test with pytest
       run: |
+        pip install pytest
         pytest

@@ -33,6 +33,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 from rest_framework import generics
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 
 @api_view(['POST'])
 def signup_view(request):

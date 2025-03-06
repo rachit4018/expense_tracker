@@ -21,5 +21,5 @@ python-dotenv==1.0.1
 six==1.17.0
 sqlparse==0.5.3
 flake8==5.0.4
-pycodestyle==2.12.1
+pycodestyle==2.9.0
 pyflakes==2.5.0

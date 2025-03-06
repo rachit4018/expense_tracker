@@ -101,5 +101,7 @@ jobs:
       - name: Run frontend tests
         working-directory: ./frontend/ex_tracker
         continue-on-error: true  # Continue even if tests fail
+        env:
+          CI: true  # Run tests in CI mode
         run: |
           npm test -- test/ --watchAll=false

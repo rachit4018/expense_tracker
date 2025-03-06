@@ -70,12 +70,12 @@ jobs:
 
       # Step 7: Install frontend dependencies
       - name: Install frontend dependencies
-        working-directory: ./frontend  # Replace with your frontend directory
+        working-directory: ./frontend/ex_tracker  # Replace with your frontend directory
         run: |
           npm install
 
       # Step 8: Run frontend tests
       - name: Run frontend tests
-        working-directory: ./frontend  # Replace with your frontend directory
+        working-directory: ./frontend/ex_tracker  # Replace with your frontend directory
         run: |
           npm test -- --watchAll=true

@@ -19,7 +19,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run tests
+      - name: Run backend tests
         run: |
-          pip cache purge
-          python -m unittest discover
+          python manage.py test backend.expense_tracker.tests  # Replace with your Django app's test path
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'  # Replace with your Node.js version
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend/ex_tracekr/src  # Replace with your frontend directory
+        run: |
+          npm install
+
+      - name: Run frontend tests
+        working-directory: ./frontend/ex_tracekr/src  # Replace with your frontend directory
+        run: |
+          npm test -- --watchAll=false

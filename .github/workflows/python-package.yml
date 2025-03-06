@@ -58,7 +58,7 @@ jobs:
 
       # Step 5: Run backend tests
       - name: Run backend tests
-        working-directory: ./backend
+        working-directory: ./backend/expense_tracker
         run: |
           python manage.py test
 

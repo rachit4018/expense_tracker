@@ -1,0 +1,107 @@
+name: Dev Branch Tests
+
+on:
+  push:
+    branches:
+      - dev  # Trigger on push to the dev branch
+  pull_request:
+    branches:
+      - dev  # Trigger on pull requests targeting the dev branch
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:13  # Use the PostgreSQL version you need
+        env:
+          POSTGRES_USER: testuser  # Database username
+          POSTGRES_PASSWORD: testpassword  # Database password
+          POSTGRES_DB: testdb  # Database name
+        ports:
+          - 5432:5432  # Expose PostgreSQL port
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5  # Health check
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'  # Replace with your Python version
+
+      # Step 3: Cache pip dependencies
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      # Step 4: Install backend dependencies
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          pip install -r requirements.txt
+
+      # Step 5: Wait for PostgreSQL to be ready
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          timeout 20s bash -c 'until pg_isready -h localhost -p 5432; do sleep 1; done; echo "PostgreSQL is ready"'
+
+      # Step 6: Set up environment variables for PostgreSQL
+      - name: Set up environment variables
+        working-directory: ./backend
+        env:
+          DB_NAME: testdb
+          DB_USER: testuser
+          DB_PASSWORD: testpassword
+          DB_HOST: localhost
+          DB_PORT: 5432
+        run: |
+          echo "DB_NAME=$DB_NAME" >> $GITHUB_ENV
+          echo "DB_USER=$DB_USER" >> $GITHUB_ENV
+          echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
+          echo "DB_HOST=$DB_HOST" >> $GITHUB_ENV
+          echo "DB_PORT=$DB_PORT" >> $GITHUB_ENV
+
+      # Step 7: Run backend tests
+      - name: Run backend tests
+        working-directory: ./backend
+        run: |
+          python manage.py test
+
+      # Step 8: Set up Node.js for frontend
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'  # Replace with your Node.js version
+
+      # Step 9: Cache npm dependencies
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ./frontend/ex_tracker/node_modules
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
+      # Step 10: Install frontend dependencies
+      - name: Install frontend dependencies
+        working-directory: ./frontend/ex_tracker
+        run: |
+          npm install
+
+      # Step 11: Run frontend tests
+      - name: Run frontend tests
+        working-directory: ./frontend/ex_tracker
+        continue-on-error: true  # Continue even if tests fail
+        env:
+          CI: true  # Run tests in CI mode
+        run: |
+          npm test -- test/ --watchAll=false

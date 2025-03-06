@@ -50,7 +50,7 @@ const VerifyCode = () => {
             if (response.status === 200) {
                 // Verification successful
                 setMessage(response.data.message);
-                setTimeout(() => navigate(""), 1000);  // Redirect to login page after successful verification
+                setTimeout(() => navigate("/"), 1000);  // Redirect to login page after successful verification
             }
         } catch (error) {
             if (error.response) {

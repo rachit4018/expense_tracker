@@ -14,6 +14,7 @@ from pathlib import Path
 
 
 from dotenv import load_dotenv
+from decouple import config
 import os
 
 # Load environment variables from .env file
@@ -95,11 +96,11 @@ WSGI_APPLICATION = 'expense_tracker_project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
+        'NAME': config('DB_NAME'),  # Reads from .env
+        'USER': config('DB_USER'),  # Reads from .env
+        'PASSWORD': config('DB_PASSWORD'),  # Reads from .env
+        'HOST': config('DB_HOST', default='localhost'),  # Reads from .env, defaults to 'localhost'
+        'PORT': config('DB_PORT', default='5432'),
     }
 }
 

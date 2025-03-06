@@ -1,0 +1,81 @@
+name: Run Tests
+
+on:
+  push:
+    branches:
+      - main  # Replace with your branch name
+  pull_request:
+    branches:
+      - main  # Replace with your branch name
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:13  # Use the PostgreSQL version you need
+        env:
+          POSTGRES_USER: testuser  # Database username
+          POSTGRES_PASSWORD: testpassword  # Database password
+          POSTGRES_DB: testdb  # Database name
+        ports:
+          - 5432:5432  # Expose PostgreSQL port
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5  # Health check
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'  # Replace with your Python version
+
+      # Step 3: Install backend dependencies
+      - name: Install backend dependencies
+        working-directory: ./backend  # Set working directory to backend
+        run: |
+          pip install -r requirements.txt
+
+      # Step 4: Set up environment variables for PostgreSQL
+      - name: Set up environment variables
+        working-directory: ./backend
+        env:
+          DB_NAME: testdb
+          DB_USER: testuser
+          DB_PASSWORD: testpassword
+          DB_HOST: localhost
+          DB_PORT: 5432
+        run: |
+          echo "DB_NAME=$DB_NAME" >> $GITHUB_ENV
+          echo "DB_USER=$DB_USER" >> $GITHUB_ENV
+          echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
+          echo "DB_HOST=$DB_HOST" >> $GITHUB_ENV
+          echo "DB_PORT=$DB_PORT" >> $GITHUB_ENV
+
+      # Step 5: Run backend tests
+      - name: Run backend tests
+        working-directory: ./backend
+        run: |
+          python manage.py test
+
+      # Step 6: Set up Node.js for frontend
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'  # Replace with your Node.js version
+
+      # Step 7: Install frontend dependencies
+      - name: Install frontend dependencies
+        working-directory: ./frontend  # Replace with your frontend directory
+        run: |
+          npm install
+
+      # Step 8: Run frontend tests
+      - name: Run frontend tests
+        working-directory: ./frontend  # Replace with your frontend directory
+        run: |
+          npm test -- --watchAll=false

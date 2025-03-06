@@ -1,12 +1,12 @@
-name: Run Tests
+name: Dev Branch Tests
 
 on:
   push:
     branches:
-      - main  # Replace with your branch name
+      - dev  # Trigger on push to the dev branch
   pull_request:
     branches:
-      - main  # Replace with your branch name
+      - dev  # Trigger on pull requests targeting the dev branch
 
 jobs:
   test:

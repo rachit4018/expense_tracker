@@ -9,6 +9,7 @@ jest.mock('../components/verifycode', () => () => <div>VerifyCode Component</div
 jest.mock('../components/home', () => () => <div>Home Component</div>);
 jest.mock('../components/group', () => () => <div>Group Component</div>);
 jest.mock('../components/settlement', () => () => <div>Settlements Component</div>);
+jest.mock('../components/expense', () => () => <div>Expense Component</div>);
 
 describe('App Component', () => {
   test('renders Login component for the root route', () => {
@@ -44,5 +45,12 @@ describe('App Component', () => {
     window.history.pushState({}, '', '/settlements/testuser');
     render(<App />);
     expect(screen.getByText('Settlements Component')).toBeInTheDocument();
+    
+  });
+
+  test('renders Expense component for the /expense/:groupId route', () => {
+    window.history.pushState({}, '', '/expense/14');
+    render(<App />);
+    expect(screen.getByText('Expense Component')).toBeInTheDocument();
   });
 });

@@ -181,7 +181,15 @@ const Group = () => {
             <br />
             {/* Add Expense Button */}
             <button id="add-expense-button">
-                <a href={`${BASE_URL}add_expense/${groupId}/`}>Add Expense</a>
+            <a
+                                href={''} // Valid href
+                                onClick={(e) => {
+                                    e.preventDefault(); // Prevent default navigation
+                                    navigate(`/expense/${groupId}`, { state: { user: user } });
+                                }}
+                            >
+                                Add Expense
+                                </a>
             </button>
             <br />
             <br />

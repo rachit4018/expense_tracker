@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import ExpenseSerializer, GroupSerializer,SettlementSerializer
+from .serializers import ExpenseSerializer, GroupSerializer,SettlementSerializer,CategorySerializer
 from django.contrib import messages
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -137,25 +137,37 @@ def login_view(request):
         )
 
 
-@login_required
-def add_expense_view(request, group_id):
-    """
-    Renders the add expense page for a specific group.
-    """
-    group = get_object_or_404(Group, group_id=group_id, members=request.user)  # Ensure user is part of the group
-    categories = Category.objects.all()
-    return render(request, "add_expense.html", {"group": group, "categories": categories, "username": request.user.username})
-
+class AddExpenseView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get (self, request, group_id):
+        group = get_object_or_404(Group, group_id=group_id, members=request.user)
+        categories = Category.objects.all()
+        print(categories)
+        category_serializer = CategorySerializer(categories,many=True)
+        print(category_serializer.data)
+        return Response(
+            {"group": {
+                "group_id": group.group_id,
+                "name": group.name
+            },
+            "categories": category_serializer.data,
+            "username": request.user.username},
+            status=status.HTTP_200_OK
+        )
 
 
 class AddExpenseAPIView(APIView):
     """
     API View to handle adding an expense to a specific group.
     """
-    permission_classes = [IsAuthenticated]
-    def expense_splitter(self,amount, split_type, group_id):
+    permission_classes = [IsAuthenticated]  # Only authenticated users can access this view
+
+    def expense_splitter(self, amount, split_type, group_id):
+        """
+        Splits the expense equally among group members.
+        """
         try:
-        # Fetch the group
+            # Fetch the group
             group = Group.objects.prefetch_related('members').get(group_id=group_id)
             members = group.members.all()
             member_count = len(members)
@@ -170,12 +182,12 @@ class AddExpenseAPIView(APIView):
                 with transaction.atomic():  # Ensures all settlements are created or none
                     for member in members:
                         Settlement.objects.create(
-                        amount=split_amount,
-                        payment_status="Pending",
-                        due_date=due_date,
-                        user=member,
-                        group=group
-                    )
+                            amount=split_amount,
+                            payment_status="Pending",
+                            due_date=due_date,
+                            user=member,
+                            group_id=group_id
+                        )
                 print(f"Successfully split amount {amount} equally among {member_count} members.")
                 return True
 
@@ -193,6 +205,9 @@ class AddExpenseAPIView(APIView):
             return False
 
     def post(self, request, group_id):
+        """
+        Handles the POST request to add an expense.
+        """
         user = request.user
         print("Request Data:", request.data)
 
@@ -208,10 +223,9 @@ class AddExpenseAPIView(APIView):
             print("Serializer Validated Data:", serializer.validated_data)
             amount = serializer.validated_data['amount']
             split_type = serializer.validated_data['split_type']
-            # Save the expense with additional fields
-            serializer.save(created_by=user, group_id=group)
-            print("Added Expense Successfully")
 
+            # Save the expense with additional fields
+            expense = serializer.save(created_by=user, group_id=group)
             print("Added Expense Successfully")
 
             # Call the expense_splitter function
@@ -225,8 +239,6 @@ class AddExpenseAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
         # Return errors if serializer is invalid
         print("Serializer Errors:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

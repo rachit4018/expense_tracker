@@ -464,10 +464,20 @@ def verify_code(request):
             status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
 
-def resend_code(request):
-    if request.method == 'POST':
+class ResendCodeAPIView(APIView):
+    """
+    API endpoint to resend a verification code to the user's email.
+    """
+
+    def post(self, request):
         # Get the email entered by the user
-        email = request.POST.get('email')
+        email = request.data.get('email')
+
+        if not email:
+            return Response(
+                {"error": "Email is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Look for the user in the database by email
         user = CustomUser.objects.filter(email=email).first()
@@ -481,17 +491,21 @@ def resend_code(request):
             # Save the new verification code and timestamp to the user
             user.verification_code = verification_code
             user.verification_code_created_at = now()  # Save the current timestamp
+            user.save()
 
             # Send the verification code to the user's email
             send_verification_email(user, verification_code)
 
             # Provide feedback to the user
-            messages.success(request, 'A new verification code has been sent to your email.')
-            return redirect('verify_code')  # Redirect back to the verification page
+            return Response(
+                {"message": "A new verification code has been sent to your email."},
+                status=status.HTTP_200_OK
+            )
         else:
-            messages.error(request, 'No user found with this email.')
-
-    return render(request, 'resend_code.html')
+            return Response(
+                {"error": "No user found with this email."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 # class SettlementAPIView(APIView):
     """

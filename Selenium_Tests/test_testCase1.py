@@ -14,8 +14,8 @@ class TestTestCase1():
     
     # Login
     self.driver.find_element(By.NAME, "username").click()
-    self.driver.find_element(By.NAME, "username").send_keys("rachit")
-    self.driver.find_element(By.NAME, "password").send_keys("Jeelu@123")
+    self.driver.find_element(By.NAME, "username").send_keys("testuser1")
+    self.driver.find_element(By.NAME, "password").send_keys("Test@123")
     self.driver.find_element(By.CSS_SELECTOR, "button").click()
 
     # Creating a Group

@@ -125,8 +125,14 @@ def login_view(request):
                 )
         else:
             # Invalid username or password
+            if 'username' in form.errors:
+                error_message = 'Invalid username.'
+            elif 'password' in form.errors:
+                error_message = 'Invalid password.'
+            else:
+                error_message = 'Invalid username or password.'
             return Response(
-                {'error': 'Invalid username or password.'},
+                {'error': error_message},
                 status=status.HTTP_401_UNAUTHORIZED
             )
     else:

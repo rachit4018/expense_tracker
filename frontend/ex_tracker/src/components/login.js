@@ -32,44 +32,46 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(""); // Clear previous errors
+
     try {
-        // Fetch CSRF token before submitting login request
-        const csrfToken = document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("csrftoken="))
-            ?.split("=")[1];
-
-        console.log("CSRF Token:", csrfToken);
-
-        // Send login request
-        const response = await axios.post(
-            `${BASE_URL}`,  // ✅ Ensure correct endpoint
-            formData,
-            {
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrfToken,  // ✅ Include CSRF token
-                },
-                withCredentials: true,
-            }
-        );
-
-        if (response.status === 200) {
-            // Store JWT Token
-            localStorage.setItem("token", response.data.token);
-            localStorage.setItem("user", JSON.stringify(response.data));
-
-            // Navigate to home
-            navigate("/home", { state: { user: response.data } });
-        } else {
-            setError("Invalid credentials");
+      // Send login request
+      const response = await axios.post(
+        `${BASE_URL}login/`, // ✅ Ensure correct endpoint
+        formData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken, // ✅ Include CSRF token
+          },
+          withCredentials: true,
         }
-    } catch (error) {
-        console.error("Login error:", error);
-        setError("An error occurred while logging in.");
-    }
-};
+      );
 
+      if (response.status === 200) {
+        // Store JWT Token and user data
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data));
+
+        // Navigate to home
+        navigate("/home", { state: { user: response.data } });
+      }
+    } catch (error) {
+      console.error("Error:", error);
+
+      // Handle backend errors
+      if (error.response) {
+        // Backend returned an error response
+        setError(error.response.data.error || "Invalid credentials");
+      } else if (error.request) {
+        // No response received from the backend
+        setError("No response from the server. Please try again.");
+      } else {
+        // Other errors (e.g., network issues)
+        setError("An unexpected error occurred. Please try again.");
+      }
+    }
+  };
 
   return (
     <div>

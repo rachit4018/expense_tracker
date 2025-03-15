@@ -34,6 +34,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 from rest_framework import generics
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.db import DatabaseError
 
 @api_view(['POST'])
 def signup_view(request):
@@ -72,8 +73,17 @@ def signup_view(request):
         else:
             # If form is not valid, return form errors
             errors = form.errors.as_json()
+            errors_dict = json.loads(errors)
+            error_messages = []
+
+            # Extract error messages from the errors dictionary
+            for field, field_errors in errors_dict.items():
+                for error in field_errors:
+                    error_messages.append(f"{field}: {error['message']}")
+
+            # Return the simplified error messages
             return Response(
-                {'error': 'There was an error with your signup.', 'details': errors},
+                {'error': 'There was an error with your signup.', 'details': error_messages},
                 status=status.HTTP_400_BAD_REQUEST
             )
     else:
@@ -94,7 +104,7 @@ def login_view(request):
 
         if form.is_valid():
             user = form.get_user()
-
+            
             if user.is_verified:
                 # Generate a JWT token
                 payload = {
@@ -125,8 +135,14 @@ def login_view(request):
                 )
         else:
             # Invalid username or password
+            if 'username' in form.errors:
+                error_message = 'Invalid username.'
+            elif 'password' in form.errors:
+                error_message = 'Invalid password.'
+            else:
+                error_message = 'Invalid username or password.'
             return Response(
-                {'error': 'Invalid username or password.'},
+                {'error': error_message},
                 status=status.HTTP_401_UNAUTHORIZED
             )
     else:
@@ -535,27 +551,67 @@ class SettlementsView(APIView):
     permission_classes = [IsAuthenticated]  # Only authenticated users can access this view
 
     def get(self, request, username):
+        
         # Fetch settlements for the authenticated user
-        settlements = Settlement.objects.filter(user=request.user)
-        serializer = SettlementSerializer(settlements, many=True)
+        try:
+        # Fetch settlements for the current user
+            settlements = Settlement.objects.filter(user=request.user)
+            
+            # Serialize the settlements
+            serializer = SettlementSerializer(settlements, many=True)
 
-        # Extract group IDs from the serializer data
-        group_values = [item['group'] for item in serializer.data]
+            # Extract group IDs from the serializer data
+            group_values = [item['group'] for item in serializer.data]
 
-        # Fetch groups with the IDs
-        groups = Group.objects.filter(group_id__in=group_values)
-        group_name_map = {group.group_id: group.name for group in groups}  # Map group_id to name
+            # Fetch groups with the IDs
+            groups = Group.objects.filter(group_id__in=group_values)
+            group_name_map = {group.group_id: group.name for group in groups}  # Map group_id to name
 
-        # Add group name to the serializer data
-        updated_data = []
-        for item in serializer.data:
-            group_id = item['group']
-            group_name = group_name_map.get(group_id, 'Unknown')  # Get group name or default to 'Unknown'
-            item['group_name'] = group_name  # Add group_name to each item
-            updated_data.append(item)
+            # Add group name to the serializer data
+            updated_data = []
+            for item in serializer.data:
+                try:
+                    group_id = item['group']
+                    group_name = group_name_map.get(group_id, 'Unknown')  # Get group name or default to 'Unknown'
+                    item['group_name'] = group_name  # Add group_name to each item
+                    updated_data.append(item)
+                except KeyError as e:
+                    # Handle missing 'group' key in the serializer data
+                    return Response(
+                        {"error": f"Invalid settlement data: missing key {str(e)}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
-        # Return the updated data as a JSON response
-        return Response({"settlements": updated_data}, status=status.HTTP_200_OK)
+            # Return the updated data as a JSON response
+            return Response({"settlements": updated_data}, status=status.HTTP_200_OK)
+
+        except ObjectDoesNotExist:
+            # Handle case where no settlements or groups are found
+            return Response(
+                {"error": "No settlements or groups found for the user."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        except DatabaseError as e:
+            # Handle database errors
+            return Response(
+                {"error": f"Database error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except ValidationError as e:
+            # Handle serialization errors
+            return Response(
+                {"error": f"Serialization error: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except Exception as e:
+            # Handle any other unexpected errors
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class SettlementsAPIView(APIView):
@@ -622,20 +678,67 @@ def csrf_token_view(request):
 
 class CreateGroupAPI(APIView):
     permission_classes = [IsAuthenticated]
-    def post(self, request):
-        print("Authenticated User:", request.user)  # Debugging: Check the authenticated user
-        
-        request.data["created_by"] = request.headers.get("X-Username")
-        username = request.headers.get("X-Username")
-        user_to_add = CustomUser.objects.get(username=username)  # Add the creator to the request data
-        print("Request Data:", request.data)  # Debugging: Log the request data
-        form = GroupForm(request.data)
-        if form.is_valid():
-            group = form.save()
 
-            # Add the user to the group
-            group.members.add(user_to_add)
-            return Response({'message': 'Group created successfully.'}, status=status.HTTP_201_CREATED)
-        else:
-            print("Form Errors:", form.errors)  # Debugging: Log form errors
-            return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
+        try:
+            print("Authenticated User:", request.user)  # Debugging: Check the authenticated user
+
+            # Add the creator to the request data
+            username = request.headers.get("X-Username")
+            if not username:
+                return Response(
+                    {"error": "X-Username header is required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            try:
+                user_to_add = CustomUser.objects.get(username=username)
+            except ObjectDoesNotExist:
+                return Response(
+                    {"error": f"User with username '{username}' does not exist."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            request.data["created_by"] = username
+            print("Request Data:", request.data)  # Debugging: Log the request data
+
+            # Validate the form
+            form = GroupForm(request.data)
+            if form.is_valid():
+                try:
+                    # Save the group
+                    group = form.save()
+
+                    # Add the user to the group
+                    group.members.add(user_to_add)
+
+                    return Response(
+                        {'message': 'Group created successfully.'},
+                        status=status.HTTP_201_CREATED
+                    )
+                except DatabaseError as e:
+                    # Handle database errors during group creation
+                    return Response(
+                        {"error": f"Database error: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+            else:
+                print("Form Errors:", form.errors)  # Debugging: Log form errors
+                return Response(
+                    {"error": "Invalid group data.", "details": form.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        except ValidationError as e:
+            # Handle validation errors
+            return Response(
+                {"error": f"Validation error: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except Exception as e:
+            # Handle any other unexpected errors
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

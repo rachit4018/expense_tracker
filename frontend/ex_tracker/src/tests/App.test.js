@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import App from '../App';
-
+import "@testing-library/jest-dom/extend-expect";
 // Mock components to avoid rendering their actual logic
 jest.mock('../components/login', () => () => <div>Login Component</div>);
 jest.mock('../components/signup', () => () => <div>Signup Component</div>);
@@ -52,5 +52,11 @@ describe('App Component', () => {
     window.history.pushState({}, '', '/expense/14');
     render(<App />);
     expect(screen.getByText('Expense Component')).toBeInTheDocument();
+  });
+
+  test('renders Resend code component for the /resend/', () => {
+    window.history.pushState({}, '', '/resend/');
+    render(<App />);
+    expect(screen.getByText('Resend Verification Code')), toBeInTheDocument();
   });
 });

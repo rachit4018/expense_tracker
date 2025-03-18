@@ -178,7 +178,7 @@ class AddExpenseAPIView(APIView):
     """
     permission_classes = [IsAuthenticated]  # Only authenticated users can access this view
 
-    def expense_splitter(self, amount, split_type, group_id):
+    def expense_splitter(self, amount, split_type, group_id, due_date):
         """
         Splits the expense equally among group members.
         """
@@ -193,7 +193,6 @@ class AddExpenseAPIView(APIView):
 
             if split_type == 'equal':
                 split_amount = amount / member_count
-                due_date = datetime.now() + relativedelta(months=1)
 
                 with transaction.atomic():  # Ensures all settlements are created or none
                     for member in members:
@@ -202,7 +201,8 @@ class AddExpenseAPIView(APIView):
                             payment_status="Pending",
                             due_date=due_date,
                             user=member,
-                            group_id=group_id
+                            group_id=group_id,
+                            settlement_date = datetime.now(),
                         )
                 print(f"Successfully split amount {amount} equally among {member_count} members.")
                 return True
@@ -226,11 +226,11 @@ class AddExpenseAPIView(APIView):
         """
         user = request.user
         print("Request Data:", request.data)
-
+        due_date = request.data.get('date', datetime.now()+relativedelta(months=1))
+        print("Due Date:", due_date)
         # Ensure the user is a member of the group
         group = get_object_or_404(Group, group_id=group_id, members=user)
         print("Group Found:", group)
-
         # Validate and deserialize request data
         serializer = ExpenseSerializer(data=request.data)
         print("Serializer Initialized:", serializer)
@@ -239,13 +239,12 @@ class AddExpenseAPIView(APIView):
             print("Serializer Validated Data:", serializer.validated_data)
             amount = serializer.validated_data['amount']
             split_type = serializer.validated_data['split_type']
-
             # Save the expense with additional fields
             expense = serializer.save(created_by=user, group_id=group)
             print("Added Expense Successfully")
 
             # Call the expense_splitter function
-            success = self.expense_splitter(amount, split_type, group_id)
+            success = self.expense_splitter(amount, split_type, group_id,due_date)
 
             if success:
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -265,7 +264,6 @@ def logout_view(request):
         logout(request)
         return redirect('login')
     
-
 
 
 class UserGroupsAPIView(APIView):
@@ -523,42 +521,7 @@ class ResendCodeAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-# class SettlementAPIView(APIView):
-    """
-    API endpoint to settle expenses between members.
-    """
-    permission_classes = [IsAuthenticated]
 
-    def get(self, request,username):
-        try:
-            user = username
-            # Filter settlements for the logged-in user
-            settlements = Settlement.objects.filter(user__username=username)
-
-            if not settlements.exists():
-                return Response({"message": "No settlements found for the user."}, status=200)
-
-            # Serialize the settlement data
-            
-            serializer = SettlementSerializer(settlements, many=True)
-            print("serializer data:",serializer.data)
-            group_values = [item['group'] for item in serializer.data]
-
-            groups = Group.objects.filter(group_id__in=group_values)  # Fetch groups with the IDs
-            group_name_map = {group.group_id: group.name for group in groups}  # Map group_id to name
-        
-            # Add group name to the serializer data
-            updated_data = []
-            for item in serializer.data:
-                group_id = item['group']
-                group_name = group_name_map.get(group_id, 'Unknown')  # Get group name or default to 'Unknown'
-                item['group_name'] = group_name  # Add group_name to each item
-                updated_data.append(item)
-
-            return render(request, 'settlement.html', {'settlements': serializer.data, 'username': username})
-
-        except Exception as e:
-            return  messages.error(request, e)
 
 
 class SettlementsView(APIView):

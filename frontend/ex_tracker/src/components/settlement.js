@@ -11,18 +11,22 @@ const Settlements = () => {
     const [message, setMessage] = useState("");
     const [csrfToken, setCsrfToken] = useState(""); // State to store CSRF token
 
-    // Fetch CSRF Token
-    const fetchCSRFToken = async () => {
-        try {
-            const response = await axios.get(`${BASE_URL}csrf/`, { withCredentials: true });
-            const csrfToken = response.headers["x-csrftoken"] || response.data.csrfToken;
-            setCsrfToken(csrfToken); // Store CSRF token in state
-        } catch (error) {
-            console.error("Failed to fetch CSRF token", error);
-        }
-    };
+    // Fetch CSRF Token (only once when the component mounts)
+    useEffect(() => {
+        const fetchCSRFToken = async () => {
+            try {
+                const response = await axios.get(`${BASE_URL}csrf/`, { withCredentials: true });
+                const csrfToken = response.headers["x-csrftoken"] || response.data.csrfToken;
+                setCsrfToken(csrfToken); // Store CSRF token in state
+            } catch (error) {
+                console.error("Failed to fetch CSRF token", error);
+            }
+        };
 
-    // Fetch settlements data when the component mounts
+        fetchCSRFToken();
+    }, []); // Empty dependency array to run only once
+
+    // Fetch settlements data when the component mounts or when user.username changes
     useEffect(() => {
         const fetchSettlements = async () => {
             try {
@@ -54,9 +58,10 @@ const Settlements = () => {
             }
         };
 
-        fetchCSRFToken();
-        fetchSettlements();
-    }, [csrfToken, user.username]);
+        if (user.username) {
+            fetchSettlements();
+        }
+    }, [user.username]); // Only depend on user.username
 
     // Handle marking a settlement as completed
     const handleMarkCompleted = async (settlementId) => {
@@ -115,6 +120,7 @@ const Settlements = () => {
                         <th>Payment Status</th>
                         <th>Settlement Method</th>
                         <th>Due Date</th>
+                        <th>Settlement Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -127,6 +133,7 @@ const Settlements = () => {
                                 <td id={`status-${settlement.id}`}>{settlement.payment_status}</td>
                                 <td>{settlement.settlement_method || "Not Specified"}</td>
                                 <td>{settlement.due_date}</td>
+                                <td>{settlement.settlement_date}</td>
                                 <td>
                                     {settlement.payment_status === "Pending" ? (
                                         <button
@@ -143,7 +150,7 @@ const Settlements = () => {
                         ))
                     ) : (
                         <tr>
-                            <td colSpan="6" style={{ textAlign: "center" }}>
+                            <td colSpan="7" style={{ textAlign: "center" }}>
                                 No settlements found.
                             </td>
                         </tr>

@@ -39,8 +39,7 @@ const Settlements = () => {
 
                 const response = await axios.get(`${BASE_URL}settlements/${user.username}/`, {
                     headers: {
-                        "Authorization": `Token ${token}`,
-                        "X-CSRFToken": csrfToken,
+                        "Authorization": `Bearer ${token}`,
                         "X-Username": user.username,
                         "Content-Type": "application/json",
                     },
@@ -78,9 +77,8 @@ const Settlements = () => {
                 { payment_status: "Completed" },
                 {
                     headers: {
-                        "Authorization": `Token ${token}`,
+                        "Authorization": `Bearer ${token}`,
                         "Content-Type": "application/json",
-                        "X-CSRFToken": csrfToken,
                         "X-Username": user.username,
                     },
                     withCredentials: true,

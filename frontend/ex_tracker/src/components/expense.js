@@ -25,10 +25,12 @@ const Expense = () => {
 
     // Fetch categories when the component mounts
     useEffect(() => {
+        const token = localStorage.getItem("token"); // Get the token from local storage
         const fetchCategories = async () => {
             try {
                 const response = await axios.get(`${BASE_URL}expense/add/${groupId}`, {
                     headers: {
+                        "Authorization": `Bearer ${token}`,
                         "Content-Type": "application/json",
                     },
                     withCredentials: true,
@@ -79,14 +81,14 @@ const Expense = () => {
         if (formData.receipt_image) {
             data.append("receipt_image", formData.receipt_image);
         }
-
+        const token = localStorage.getItem("token"); // Get the token from local storage
         try {
             const response = await axios.post(
                 `${BASE_URL}expense/add_expense_api/${groupId}`,
                 data,
                 {
                     headers: {
-                        "X-CSRFToken": csrfToken,
+                        "Authorization": `Bearer ${token}`,
                         "Content-Type": "multipart/form-data",
                     },
                     withCredentials: true,

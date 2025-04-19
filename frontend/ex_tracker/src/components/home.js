@@ -32,9 +32,8 @@ const Home = () => {
 
             const response = await axios.get(`${BASE_URL}api/groups/`, {
                 headers: {
-                    "Authorization": `Token ${token}`, // Include the token in the headers
+                    "Authorization": `Bearer ${token}`, // Include the token in the headers
                     "X-Username": user.username,
-                    "X-CSRFToken": csrfToken,
                     "Content-Type": "application/json",
                 },
                 withCredentials: true,
@@ -67,14 +66,14 @@ const Home = () => {
                 .split("; ")
                 .find((row) => row.startsWith("csrftoken="))
                 ?.split("=")[1];
-
+            const token = localStorage.getItem("token");
             await axios.post(
                 `${BASE_URL}api/groups/create/`,
                 { name: groupName },
                 {
                     headers: {
+                        "Authorization": `Bearer ${token}`,
                         "X-Username": user.username,
-                        "X-CSRFToken": csrfToken,
                         "Content-Type": "application/json",
                     },
                     withCredentials: true,

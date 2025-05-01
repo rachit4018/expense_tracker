@@ -40,9 +40,8 @@ const Group = () => {
                 // Make the API request
                 const response = await axios.get(`${BASE_URL}groups/api/${groupId}/`, {
                     headers: {
-                        "Authorization": `Token ${token}`,
+                        "Authorization": `Bearer ${token}`,
                         "X-Username": username,
-                        "X-CSRFToken": csrfToken,
                         "Content-Type": "application/json",
                     }, withCredentials: true,
                 });
@@ -94,9 +93,8 @@ const Group = () => {
                 // Make the API request
                 const response = await axios.post(`${BASE_URL}group/${groupId}/add_member/`, { username: selectedMember },{
                     headers: {
-                        "Authorization": `Token ${token}`,
+                        "Authorization": `Bearer ${token}`,
                         "X-Username": username,
-                        "X-CSRFToken": csrfToken,
                         "Content-Type": "application/json",
                     }, withCredentials: true,
                 });

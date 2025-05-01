@@ -43,7 +43,7 @@ class SignupViewTests(TestCase):
             'semester': 4,
         }
         response = self.client.post(self.signup_url, invalid_data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         #self.assertIn('error', response.data)
 
     def test_signup_with_mismatched_passwords(self):
@@ -58,7 +58,7 @@ class SignupViewTests(TestCase):
             'semester': 4,
         }
         response = self.client.post(self.signup_url, invalid_data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         #self.assertIn('error', response.data)
 
 

@@ -35,8 +35,19 @@ from django.views.decorators.http import require_POST
 from rest_framework import generics
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import DatabaseError
+from .custom_auth import CustomAuthentication
+from .middleware import JWTAuthMiddleware, CSRFExemptMiddleware
 
+class BaseAPIView(APIView):
+    """
+    Base API View to handle common functionality.
+    """
+    authentication_classes = [CustomAuthentication]  # Use custom JWT authentication
+    permission_classes = [IsAuthenticated]  # Ensure user is authenticated
+
+@csrf_exempt
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def signup_view(request):
     if request.method == 'POST':
         # Use request.data for JSON input
@@ -153,8 +164,7 @@ def login_view(request):
         )
 
 
-class AddExpenseView(APIView):
-    permission_classes = [IsAuthenticated]
+class AddExpenseView(BaseAPIView):
     def get (self, request, group_id):
         group = get_object_or_404(Group, group_id=group_id, members=request.user)
         categories = Category.objects.all()
@@ -172,11 +182,10 @@ class AddExpenseView(APIView):
         )
 
 
-class AddExpenseAPIView(APIView):
+class AddExpenseAPIView(BaseAPIView):
     """
     API View to handle adding an expense to a specific group.
-    """
-    permission_classes = [IsAuthenticated]  # Only authenticated users can access this view
+    """  # Only authenticated users can access this view
 
     def expense_splitter(self, amount, split_type, group_id, due_date):
         """
@@ -264,12 +273,10 @@ def logout_view(request):
         logout(request)
         return redirect('login')
     
+@method_decorator(csrf_exempt, name='dispatch')
+class UserGroupsAPIView(BaseAPIView):
 
-
-class UserGroupsAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
+    def get(self, request):  # Debugging: Print request headers
         # Get username from headers
         username = request.headers.get('X-Username')
         print(username)
@@ -314,8 +321,7 @@ def home_view(request):
 
 
 
-class GroupDetailsAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+class GroupDetailsAPIView(BaseAPIView):
 
     def get(self, request, group_id):
         # Get the username from the header
@@ -364,11 +370,10 @@ class GroupDetailsAPIView(APIView):
 def group_details_template(request, group_id):
     return render(request, 'group_details.html', {'group_id': group_id})
 
-class AddMemberAPIView(APIView):
+class AddMemberAPIView(BaseAPIView):
     """
     API endpoint to add a member to a group.
     """
-    permission_classes = [IsAuthenticated]
 
     def post(self, request, group_id):
         # Debug the incoming request
@@ -524,8 +529,7 @@ class ResendCodeAPIView(APIView):
 
 
 
-class SettlementsView(APIView):
-    permission_classes = [IsAuthenticated]  # Only authenticated users can access this view
+class SettlementsView(APIView): # Only authenticated users can access this view
 
     def get(self, request, username):
         
@@ -591,12 +595,10 @@ class SettlementsView(APIView):
             )
 
 
-class SettlementsAPIView(APIView):
+class SettlementsAPIView(BaseAPIView):
     """
     API View to fetch settlements for an authenticated user.
     """
-    permission_classes = [IsAuthenticated]
-
     def get(self, request,username):
         username = request.headers.get('X-Username')
 
@@ -624,11 +626,10 @@ class SettlementsAPIView(APIView):
 
   # Exempt entire view from CSRF
 
-class UpdatePaymentStatusAPIView(APIView):
+class UpdatePaymentStatusAPIView(BaseAPIView):
     """
     API View to update the payment status of a settlement.
-    """
-    permission_classes = [IsAuthenticated]  # Ensures user is authenticated
+    """  # Ensures user is authenticated
 
     def patch(self, request, settlementId):
         try:
@@ -653,8 +654,7 @@ def csrf_token_view(request):
     return JsonResponse({"csrfToken": get_token(request)})
 
 
-class CreateGroupAPI(APIView):
-    permission_classes = [IsAuthenticated]
+class CreateGroupAPI(BaseAPIView):
 
     def post(self, request):
         try:

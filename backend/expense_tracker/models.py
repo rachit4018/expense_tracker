@@ -62,4 +62,4 @@ class Settlement(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     amount = models.DecimalField(decimal_places=2,max_digits=10)
-    
+    settlement_date = models.DateField(default=datetime.now)

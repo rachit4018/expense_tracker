@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import BASE_URL from "../config"; // Assuming you have a config file for the base URL\
-import { useLocation, useNavigate } from "react-router-dom";
+import BASE_URL from "../config"; // Assuming you have a config file for the base URL
+import { useLocation } from "react-router-dom";
 
 const Settlements = () => {
     const location = useLocation();
@@ -9,18 +9,37 @@ const Settlements = () => {
     const [settlements, setSettlements] = useState([]);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
-    const csrfToken = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("csrftoken="))
-        ?.split("=")[1];
+    const [csrfToken, setCsrfToken] = useState(""); // State to store CSRF token
 
-    // Fetch settlements data when the component mounts
+    // Fetch CSRF Token (only once when the component mounts)
+    useEffect(() => {
+        const fetchCSRFToken = async () => {
+            try {
+                const response = await axios.get(`${BASE_URL}csrf/`, { withCredentials: true });
+                const csrfToken = response.headers["x-csrftoken"] || response.data.csrfToken;
+                setCsrfToken(csrfToken); // Store CSRF token in state
+            } catch (error) {
+                console.error("Failed to fetch CSRF token", error);
+            }
+        };
+
+        fetchCSRFToken();
+    }, []); // Empty dependency array to run only once
+
+    // Fetch settlements data when the component mounts or when user.username changes
     useEffect(() => {
         const fetchSettlements = async () => {
             try {
+                const token = localStorage.getItem("token");
+
+                if (!token) {
+                    setError("Authorization token not found.");
+                    return;
+                }
+
                 const response = await axios.get(`${BASE_URL}settlements/${user.username}/`, {
                     headers: {
-                        "X-CSRFToken": csrfToken,
+                        "Authorization": `Bearer ${token}`,
                         "X-Username": user.username,
                         "Content-Type": "application/json",
                     },
@@ -38,19 +57,28 @@ const Settlements = () => {
             }
         };
 
-        fetchSettlements();
-    }, [csrfToken]);
+        if (user.username) {
+            fetchSettlements();
+        }
+    }, [user.username]); // Only depend on user.username
 
     // Handle marking a settlement as completed
     const handleMarkCompleted = async (settlementId) => {
         try {
+            const token = localStorage.getItem("token");
+
+            if (!token) {
+                setError("Authorization token not found.");
+                return;
+            }
+
             const response = await axios.patch(
                 `${BASE_URL}settlements/api/${settlementId}/`,
                 { payment_status: "Completed" },
                 {
                     headers: {
+                        "Authorization": `Bearer ${token}`,
                         "Content-Type": "application/json",
-                        "X-CSRFToken": csrfToken,
                         "X-Username": user.username,
                     },
                     withCredentials: true,
@@ -90,6 +118,7 @@ const Settlements = () => {
                         <th>Payment Status</th>
                         <th>Settlement Method</th>
                         <th>Due Date</th>
+                        <th>Settlement Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -102,6 +131,7 @@ const Settlements = () => {
                                 <td id={`status-${settlement.id}`}>{settlement.payment_status}</td>
                                 <td>{settlement.settlement_method || "Not Specified"}</td>
                                 <td>{settlement.due_date}</td>
+                                <td>{settlement.settlement_date}</td>
                                 <td>
                                     {settlement.payment_status === "Pending" ? (
                                         <button
@@ -118,7 +148,7 @@ const Settlements = () => {
                         ))
                     ) : (
                         <tr>
-                            <td colSpan="6" style={{ textAlign: "center" }}>
+                            <td colSpan="7" style={{ textAlign: "center" }}>
                                 No settlements found.
                             </td>
                         </tr>

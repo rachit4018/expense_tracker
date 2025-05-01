@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import ExpenseSerializer, GroupSerializer,SettlementSerializer
+from .serializers import ExpenseSerializer, GroupSerializer,SettlementSerializer,CategorySerializer
 from django.contrib import messages
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -34,8 +34,20 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 from rest_framework import generics
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.db import DatabaseError
+from .custom_auth import CustomAuthentication
+from .middleware import JWTAuthMiddleware, CSRFExemptMiddleware
 
+class BaseAPIView(APIView):
+    """
+    Base API View to handle common functionality.
+    """
+    authentication_classes = [CustomAuthentication]  # Use custom JWT authentication
+    permission_classes = [IsAuthenticated]  # Ensure user is authenticated
+
+@csrf_exempt
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def signup_view(request):
     if request.method == 'POST':
         # Use request.data for JSON input
@@ -72,8 +84,17 @@ def signup_view(request):
         else:
             # If form is not valid, return form errors
             errors = form.errors.as_json()
+            errors_dict = json.loads(errors)
+            error_messages = []
+
+            # Extract error messages from the errors dictionary
+            for field, field_errors in errors_dict.items():
+                for error in field_errors:
+                    error_messages.append(f"{field}: {error['message']}")
+
+            # Return the simplified error messages
             return Response(
-                {'error': 'There was an error with your signup.', 'details': errors},
+                {'error': 'There was an error with your signup.', 'details': error_messages},
                 status=status.HTTP_400_BAD_REQUEST
             )
     else:
@@ -94,7 +115,7 @@ def login_view(request):
 
         if form.is_valid():
             user = form.get_user()
-
+            
             if user.is_verified:
                 # Generate a JWT token
                 payload = {
@@ -125,8 +146,14 @@ def login_view(request):
                 )
         else:
             # Invalid username or password
+            if 'username' in form.errors:
+                error_message = 'Invalid username.'
+            elif 'password' in form.errors:
+                error_message = 'Invalid password.'
+            else:
+                error_message = 'Invalid username or password.'
             return Response(
-                {'error': 'Invalid username or password.'},
+                {'error': error_message},
                 status=status.HTTP_401_UNAUTHORIZED
             )
     else:
@@ -137,25 +164,35 @@ def login_view(request):
         )
 
 
-@login_required
-def add_expense_view(request, group_id):
-    """
-    Renders the add expense page for a specific group.
-    """
-    group = get_object_or_404(Group, group_id=group_id, members=request.user)  # Ensure user is part of the group
-    categories = Category.objects.all()
-    return render(request, "add_expense.html", {"group": group, "categories": categories, "username": request.user.username})
+class AddExpenseView(BaseAPIView):
+    def get (self, request, group_id):
+        group = get_object_or_404(Group, group_id=group_id, members=request.user)
+        categories = Category.objects.all()
+        print(categories)
+        category_serializer = CategorySerializer(categories,many=True)
+        print(category_serializer.data)
+        return Response(
+            {"group": {
+                "group_id": group.group_id,
+                "name": group.name
+            },
+            "categories": category_serializer.data,
+            "username": request.user.username},
+            status=status.HTTP_200_OK
+        )
 
 
-
-class AddExpenseAPIView(APIView):
+class AddExpenseAPIView(BaseAPIView):
     """
     API View to handle adding an expense to a specific group.
-    """
-    permission_classes = [IsAuthenticated]
-    def expense_splitter(self,amount, split_type, group_id):
+    """  # Only authenticated users can access this view
+
+    def expense_splitter(self, amount, split_type, group_id, due_date):
+        """
+        Splits the expense equally among group members.
+        """
         try:
-        # Fetch the group
+            # Fetch the group
             group = Group.objects.prefetch_related('members').get(group_id=group_id)
             members = group.members.all()
             member_count = len(members)
@@ -165,17 +202,17 @@ class AddExpenseAPIView(APIView):
 
             if split_type == 'equal':
                 split_amount = amount / member_count
-                due_date = datetime.now() + relativedelta(months=1)
 
                 with transaction.atomic():  # Ensures all settlements are created or none
                     for member in members:
                         Settlement.objects.create(
-                        amount=split_amount,
-                        payment_status="Pending",
-                        due_date=due_date,
-                        user=member,
-                        group=group
-                    )
+                            amount=split_amount,
+                            payment_status="Pending",
+                            due_date=due_date,
+                            user=member,
+                            group_id=group_id,
+                            settlement_date = datetime.now(),
+                        )
                 print(f"Successfully split amount {amount} equally among {member_count} members.")
                 return True
 
@@ -193,13 +230,16 @@ class AddExpenseAPIView(APIView):
             return False
 
     def post(self, request, group_id):
+        """
+        Handles the POST request to add an expense.
+        """
         user = request.user
         print("Request Data:", request.data)
-
+        due_date = request.data.get('date', datetime.now()+relativedelta(months=1))
+        print("Due Date:", due_date)
         # Ensure the user is a member of the group
         group = get_object_or_404(Group, group_id=group_id, members=user)
         print("Group Found:", group)
-
         # Validate and deserialize request data
         serializer = ExpenseSerializer(data=request.data)
         print("Serializer Initialized:", serializer)
@@ -209,13 +249,11 @@ class AddExpenseAPIView(APIView):
             amount = serializer.validated_data['amount']
             split_type = serializer.validated_data['split_type']
             # Save the expense with additional fields
-            serializer.save(created_by=user, group_id=group)
-            print("Added Expense Successfully")
-
+            expense = serializer.save(created_by=user, group_id=group)
             print("Added Expense Successfully")
 
             # Call the expense_splitter function
-            success = self.expense_splitter(amount, split_type, group_id)
+            success = self.expense_splitter(amount, split_type, group_id,due_date)
 
             if success:
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -225,8 +263,6 @@ class AddExpenseAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
         # Return errors if serializer is invalid
         print("Serializer Errors:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -237,13 +273,10 @@ def logout_view(request):
         logout(request)
         return redirect('login')
     
+@method_decorator(csrf_exempt, name='dispatch')
+class UserGroupsAPIView(BaseAPIView):
 
-
-
-class UserGroupsAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
+    def get(self, request):  # Debugging: Print request headers
         # Get username from headers
         username = request.headers.get('X-Username')
         print(username)
@@ -288,8 +321,7 @@ def home_view(request):
 
 
 
-class GroupDetailsAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+class GroupDetailsAPIView(BaseAPIView):
 
     def get(self, request, group_id):
         # Get the username from the header
@@ -338,11 +370,10 @@ class GroupDetailsAPIView(APIView):
 def group_details_template(request, group_id):
     return render(request, 'group_details.html', {'group_id': group_id})
 
-class AddMemberAPIView(APIView):
+class AddMemberAPIView(BaseAPIView):
     """
     API endpoint to add a member to a group.
     """
-    permission_classes = [IsAuthenticated]
 
     def post(self, request, group_id):
         # Debug the incoming request
@@ -452,10 +483,20 @@ def verify_code(request):
             status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
 
-def resend_code(request):
-    if request.method == 'POST':
+class ResendCodeAPIView(APIView):
+    """
+    API endpoint to resend a verification code to the user's email.
+    """
+
+    def post(self, request):
         # Get the email entered by the user
-        email = request.POST.get('email')
+        email = request.data.get('email')
+
+        if not email:
+            return Response(
+                {"error": "Email is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Look for the user in the database by email
         user = CustomUser.objects.filter(email=email).first()
@@ -469,89 +510,95 @@ def resend_code(request):
             # Save the new verification code and timestamp to the user
             user.verification_code = verification_code
             user.verification_code_created_at = now()  # Save the current timestamp
+            user.save()
 
             # Send the verification code to the user's email
             send_verification_email(user, verification_code)
 
             # Provide feedback to the user
-            messages.success(request, 'A new verification code has been sent to your email.')
-            return redirect('verify_code')  # Redirect back to the verification page
+            return Response(
+                {"message": "A new verification code has been sent to your email."},
+                status=status.HTTP_200_OK
+            )
         else:
-            messages.error(request, 'No user found with this email.')
+            return Response(
+                {"error": "No user found with this email."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-    return render(request, 'resend_code.html')
 
-# class SettlementAPIView(APIView):
-    """
-    API endpoint to settle expenses between members.
-    """
-    permission_classes = [IsAuthenticated]
 
-    def get(self, request,username):
+
+class SettlementsView(APIView): # Only authenticated users can access this view
+
+    def get(self, request, username):
+        
+        # Fetch settlements for the authenticated user
         try:
-            user = username
-            # Filter settlements for the logged-in user
-            settlements = Settlement.objects.filter(user__username=username)
-
-            if not settlements.exists():
-                return Response({"message": "No settlements found for the user."}, status=200)
-
-            # Serialize the settlement data
+        # Fetch settlements for the current user
+            settlements = Settlement.objects.filter(user=request.user)
             
+            # Serialize the settlements
             serializer = SettlementSerializer(settlements, many=True)
-            print("serializer data:",serializer.data)
+
+            # Extract group IDs from the serializer data
             group_values = [item['group'] for item in serializer.data]
 
-            groups = Group.objects.filter(group_id__in=group_values)  # Fetch groups with the IDs
+            # Fetch groups with the IDs
+            groups = Group.objects.filter(group_id__in=group_values)
             group_name_map = {group.group_id: group.name for group in groups}  # Map group_id to name
-        
+
             # Add group name to the serializer data
             updated_data = []
             for item in serializer.data:
-                group_id = item['group']
-                group_name = group_name_map.get(group_id, 'Unknown')  # Get group name or default to 'Unknown'
-                item['group_name'] = group_name  # Add group_name to each item
-                updated_data.append(item)
+                try:
+                    group_id = item['group']
+                    group_name = group_name_map.get(group_id, 'Unknown')  # Get group name or default to 'Unknown'
+                    item['group_name'] = group_name  # Add group_name to each item
+                    updated_data.append(item)
+                except KeyError as e:
+                    # Handle missing 'group' key in the serializer data
+                    return Response(
+                        {"error": f"Invalid settlement data: missing key {str(e)}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
-            return render(request, 'settlement.html', {'settlements': serializer.data, 'username': username})
+            # Return the updated data as a JSON response
+            return Response({"settlements": updated_data}, status=status.HTTP_200_OK)
+
+        except ObjectDoesNotExist:
+            # Handle case where no settlements or groups are found
+            return Response(
+                {"error": "No settlements or groups found for the user."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        except DatabaseError as e:
+            # Handle database errors
+            return Response(
+                {"error": f"Database error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except ValidationError as e:
+            # Handle serialization errors
+            return Response(
+                {"error": f"Serialization error: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         except Exception as e:
-            return  messages.error(request, e)
+            # Handle any other unexpected errors
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
-class SettlementsView(APIView):
-    permission_classes = [IsAuthenticated]  # Only authenticated users can access this view
-
-    def get(self, request, username):
-        # Fetch settlements for the authenticated user
-        settlements = Settlement.objects.filter(user=request.user)
-        serializer = SettlementSerializer(settlements, many=True)
-
-        # Extract group IDs from the serializer data
-        group_values = [item['group'] for item in serializer.data]
-
-        # Fetch groups with the IDs
-        groups = Group.objects.filter(group_id__in=group_values)
-        group_name_map = {group.group_id: group.name for group in groups}  # Map group_id to name
-
-        # Add group name to the serializer data
-        updated_data = []
-        for item in serializer.data:
-            group_id = item['group']
-            group_name = group_name_map.get(group_id, 'Unknown')  # Get group name or default to 'Unknown'
-            item['group_name'] = group_name  # Add group_name to each item
-            updated_data.append(item)
-
-        # Return the updated data as a JSON response
-        return Response({"settlements": updated_data}, status=status.HTTP_200_OK)
-
-
-class SettlementsAPIView(APIView):
+class SettlementsAPIView(BaseAPIView):
     """
     API View to fetch settlements for an authenticated user.
     """
-    permission_classes = [IsAuthenticated]
-
     def get(self, request,username):
         username = request.headers.get('X-Username')
 
@@ -579,11 +626,10 @@ class SettlementsAPIView(APIView):
 
   # Exempt entire view from CSRF
 
-class UpdatePaymentStatusAPIView(APIView):
+class UpdatePaymentStatusAPIView(BaseAPIView):
     """
     API View to update the payment status of a settlement.
-    """
-    permission_classes = [IsAuthenticated]  # Ensures user is authenticated
+    """  # Ensures user is authenticated
 
     def patch(self, request, settlementId):
         try:
@@ -608,22 +654,68 @@ def csrf_token_view(request):
     return JsonResponse({"csrfToken": get_token(request)})
 
 
-class CreateGroupAPI(APIView):
-    permission_classes = [IsAuthenticated]
-    def post(self, request):
-        print("Authenticated User:", request.user)  # Debugging: Check the authenticated user
-        
-        request.data["created_by"] = request.headers.get("X-Username")
-        username = request.headers.get("X-Username")
-        user_to_add = CustomUser.objects.get(username=username)  # Add the creator to the request data
-        print("Request Data:", request.data)  # Debugging: Log the request data
-        form = GroupForm(request.data)
-        if form.is_valid():
-            group = form.save()
+class CreateGroupAPI(BaseAPIView):
 
-            # Add the user to the group
-            group.members.add(user_to_add)
-            return Response({'message': 'Group created successfully.'}, status=status.HTTP_201_CREATED)
-        else:
-            print("Form Errors:", form.errors)  # Debugging: Log form errors
-            return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
+        try:
+            print("Authenticated User:", request.user)  # Debugging: Check the authenticated user
+
+            # Add the creator to the request data
+            username = request.headers.get("X-Username")
+            if not username:
+                return Response(
+                    {"error": "X-Username header is required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            try:
+                user_to_add = CustomUser.objects.get(username=username)
+            except ObjectDoesNotExist:
+                return Response(
+                    {"error": f"User with username '{username}' does not exist."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            request.data["created_by"] = username
+            print("Request Data:", request.data)  # Debugging: Log the request data
+
+            # Validate the form
+            form = GroupForm(request.data)
+            if form.is_valid():
+                try:
+                    # Save the group
+                    group = form.save()
+
+                    # Add the user to the group
+                    group.members.add(user_to_add)
+
+                    return Response(
+                        {'message': 'Group created successfully.'},
+                        status=status.HTTP_201_CREATED
+                    )
+                except DatabaseError as e:
+                    # Handle database errors during group creation
+                    return Response(
+                        {"error": f"Database error: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+            else:
+                print("Form Errors:", form.errors)  # Debugging: Log form errors
+                return Response(
+                    {"error": "Invalid group data.", "details": form.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        except ValidationError as e:
+            # Handle validation errors
+            return Response(
+                {"error": f"Validation error: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except Exception as e:
+            # Handle any other unexpected errors
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

@@ -91,7 +91,13 @@ const VerifyCode = () => {
                 </p>
                 <button type="submit">Verify</button>
             </form>
+            <br />
+            <button>
+                <a href="/resend">Resend Code</a>
+            </button>
         </div>
+
+
     );
 };
 

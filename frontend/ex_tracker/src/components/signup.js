@@ -41,6 +41,14 @@ const Signup = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError(""); // Clear previous errors
+        setMessages([]); // Clear previous messages
+
+        // Frontend validation: Check if passwords match
+        if (formData.password1 !== formData.password2) {
+            setError("Passwords do not match.");
+            return;
+        }
         try {
             // Send signup request to the backend
             const response = await axios.post(
@@ -67,7 +75,13 @@ const Signup = () => {
             if (error.response) {
                 // Handle specific error messages from the backend
                 setError(error.response.data.error || "Sign up failed. Please check your details.");
-                setMessages(error.response.data.details ? [error.response.data.details] : []); // Ensure messages is an array
+                if (error.response.data.details) {
+                    // Convert details to an array if it's not already
+                    const details = Array.isArray(error.response.data.details)
+                        ? error.response.data.details
+                        : [error.response.data.details];
+                    setMessages(details);
+                } // Ensure messages is an array
             } else {
                 setError("An error occurred while submitting.");
             }
@@ -82,7 +96,7 @@ const Signup = () => {
             {messages.length > 0 && (
                 <div>
                     {messages.map((msg, index) => (
-                        <p key={index}>{msg}</p>
+                         <p key={index} style={{ color: msg.includes("success") ? "green" : "red" }}>{msg}</p>
                     ))}
                 </div>
             )}

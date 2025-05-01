@@ -1,9 +1,14 @@
 module.exports = {
-    testMatch: [
-      "**/test/**/*.js",       // Look for tests in the `test` directory
-      "**/?(*.)+(spec|test).js" // Look for files with .spec.js or .test.js
+    setupFilesAfterEnv: ["<rootDir>/setupTests.js"], // ✅ Fix path issue
+    testEnvironment: "jest-environment-jsdom",
+    transform: {
+      "^.+\\.jsx?$": "babel-jest"
+    },
+    transformIgnorePatterns: [
+      "node_modules/(?!axios)" // Ensure Jest transforms axios
     ],
-    testPathIgnorePatterns: [
-      "/node_modules/"  // Ignore node_modules
-    ],
+    moduleNameMapper: {
+        axios: 'axios/dist/node/axios.cjs',
+    },
   };
+  

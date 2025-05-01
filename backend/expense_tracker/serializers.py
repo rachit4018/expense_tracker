@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from .models import Category, Expense, Group, Settlement
+from datetime import datetime, timedelta
+from django.utils.timezone import now
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -14,6 +16,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         # Use validated data to create the expense
+        validated_data["date"] = now().strftime("%Y-%m-%d") 
         return Expense.objects.create(**validated_data)
 
 

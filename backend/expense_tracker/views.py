@@ -44,7 +44,10 @@ class BaseAPIView(APIView):
     """
     authentication_classes = [CustomAuthentication]  # Use custom JWT authentication
     permission_classes = [IsAuthenticated]  # Ensure user is authenticated
+
+@csrf_exempt
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def signup_view(request):
     if request.method == 'POST':
         # Use request.data for JSON input

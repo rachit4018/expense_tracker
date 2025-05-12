@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
-import BASE_URL from "../config"; // Assuming you have a config file for the base URL
+import BASE_URL from "../config";
 
 const Expense = () => {
     const groupId = parseInt(useParams().groupId, 10);
@@ -23,9 +23,8 @@ const Expense = () => {
         groupid: groupId,
     });
 
-    // Fetch categories when the component mounts
     useEffect(() => {
-        const token = localStorage.getItem("token"); // Get the token from local storage
+        const token = localStorage.getItem("token");
         const fetchCategories = async () => {
             try {
                 const response = await axios.get(`${BASE_URL}expense/add/${groupId}`, {
@@ -50,55 +49,37 @@ const Expense = () => {
         };
 
         fetchCategories();
-    }, []);
+    }, [groupId]);
 
-    // Handle form input changes
     const handleChange = (e) => {
         const { name, value, files } = e.target;
-        if (name === "receipt_image") {
-            setFormData({ ...formData, [name]: files[0] }); // Handle file input
-        } else {
-            setFormData({ ...formData, [name]: value });
-        }
+        setFormData({
+            ...formData,
+            [name]: name === "receipt_image" ? files[0] : value,
+        });
     };
 
-    // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        const csrfToken = document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("csrftoken="))
-            ?.split("=")[1];
-
         const data = new FormData();
-        data.append("amount", formData.amount);
-        data.append("category", formData.category);
-        data.append("split_type", formData.split_type);
-        data.append("date", formData.date);
-        data.append("created_by", formData.created_by);
-        data.append("group_id", formData.groupid);
-        if (formData.receipt_image) {
-            data.append("receipt_image", formData.receipt_image);
-        }
-        const token = localStorage.getItem("token"); // Get the token from local storage
+        Object.entries(formData).forEach(([key, value]) => {
+            data.append(key === "groupid" ? "group_id" : key, value);
+        });
+
+        const token = localStorage.getItem("token");
         try {
-            const response = await axios.post(
-                `${BASE_URL}expense/add_expense_api/${groupId}`,
-                data,
-                {
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "Content-Type": "multipart/form-data",
-                    },
-                    withCredentials: true,
-                }
-            );
+            const response = await axios.post(`${BASE_URL}expense/add_expense_api/${groupId}`, data, {
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "multipart/form-data",
+                },
+                withCredentials: true,
+            });
 
             if (response.status === 201) {
-                setMessage("Expense added successfully!");
                 alert("Expense added successfully!");
-                navigate(`/groups/${groupId}`,{ state: { user: user } }); // Redirect to the group details page
+                navigate(`/groups/${groupId}`, { state: { user } });
             } else {
                 setError(response.data.error || "Failed to add expense.");
             }
@@ -108,114 +89,128 @@ const Expense = () => {
         }
     };
 
-    if (loading) {
-        return <p>Loading...</p>;
-    }
+    const handleLogout = () => {
+        navigate("/");
+    };
+    const handleSettlements = () => {
+        navigate(`/settlements/${user.username}`, { state: { user: user } });
+    };
+
+    if (loading) return <p className="text-center mt-10">Loading...</p>;
 
     return (
-        <div style={{ maxWidth: "600px", margin: "0 auto", padding: "20px" }}>
-            <h1>Add Expense to Group</h1>
-            {error && <p style={{ color: "red" }}>{error}</p>}
-            {message && <p style={{ color: "green" }}>{message}</p>}
-
-            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                {/* Amount Field */}
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                    <label htmlFor="amount">Amount:</label>
-                    <input
-                        type="number"
-                        id="amount"
-                        name="amount"
-                        value={formData.amount}
-                        onChange={handleChange}
-                        placeholder="Enter expense amount"
-                        step="0.01"
-                        required
-                        style={{ padding: "8px", fontSize: "16px" }}
-                    />
-                </div>
-
-                {/* Category Field */}
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                    <label htmlFor="category">Category:</label>
-                    <select
-                        id="category"
-                        name="category"
-                        value={formData.category}
-                        onChange={handleChange}
-                        required
-                        style={{ padding: "8px", fontSize: "16px" }}
-                    >
-                        <option value="" disabled>
-                            Select a category
-                        </option>
-                        {categories.map((category) => (
-                            <option key={category.id} value={category.id}>
-                                {category.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Split Type Field */}
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                    <label htmlFor="split_type">Split Type:</label>
-                    <select
-                        id="split_type"
-                        name="split_type"
-                        value={formData.split_type}
-                        onChange={handleChange}
-                        required
-                        style={{ padding: "8px", fontSize: "16px" }}
-                    >
-                        <option value="equal">Equal</option>
-                    </select>
-                </div>
-
-                {/* Date Field */}
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                    <label htmlFor="date">Date:</label>
-                    <input
-                        type="date"
-                        id="date"
-                        name="date"
-                        value={formData.date}
-                        onChange={handleChange}
-                        required
-                        style={{ padding: "8px", fontSize: "16px" }}
-                    />
-                </div>
-
-                {/* Receipt Image Field */}
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                    <label htmlFor="receipt_image">Receipt Image:</label>
-                    <input
-                        type="file"
-                        id="receipt_image"
-                        name="receipt_image"
-                        onChange={handleChange}
-                        style={{ padding: "8px", fontSize: "16px" }}
-                    />
-                </div>
-
-                {/* Submit Button */}
-                <div>
-                    <button
-                        type="submit"
-                        style={{
-                            padding: "10px 20px",
-                            backgroundColor: "#007bff",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontSize: "16px",
-                        }}
-                    >
-                        Add Expense
+        <div className="min-h-screen bg-pink-100">
+            {/* Navbar */}
+            <nav className="bg-white shadow-md">
+                <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+                <button onClick={() => navigate("/home", { state: { user } })} className="flex items-center">
+                    <h1 className="text-2xl font-bold text-indigo-700">💸 Expense Tracker</h1>
                     </button>
+                    <div className="flex space-x-4">
+                        <button
+                            onClick={handleSettlements}
+                            className="text-indigo-700 hover:underline font-medium"
+                        >
+                            Settlements
+                        </button>
+                        <button
+                            onClick={handleLogout}
+                            className="text-indigo-700 hover:underline font-medium"
+                        >
+                            Logout
+                        </button>
+                    </div>
                 </div>
-            </form>
+            </nav>
+
+            {/* Form Section */}
+            <div className="max-w-3xl mx-auto mt-10 bg-white shadow-lg rounded-lg p-8">
+                <h2 className="text-2xl font-bold mb-6 text-gray-800">Add Expense to Group</h2>
+
+                {error && <p className="text-red-600 mb-4">{error}</p>}
+                {message && <p className="text-green-600 mb-4">{message}</p>}
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Amount */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                        <input
+                            type="number"
+                            name="amount"
+                            value={formData.amount}
+                            onChange={handleChange}
+                            className="w-full border px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            placeholder="Enter amount"
+                            step="0.01"
+                            required
+                        />
+                    </div>
+
+                    {/* Category */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <select
+                            name="category"
+                            value={formData.category}
+                            onChange={handleChange}
+                            className="w-full border px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            required
+                        >
+                            <option value="" disabled>Select a category</option>
+                            {categories.map((category) => (
+                                <option key={category.id} value={category.id}>{category.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Split Type */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Split Type</label>
+                        <select
+                            name="split_type"
+                            value={formData.split_type}
+                            onChange={handleChange}
+                            className="w-full border px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        >
+                            <option value="equal">Equal</option>
+                        </select>
+                    </div>
+
+                    {/* Date */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <input
+                            type="date"
+                            name="date"
+                            value={formData.date}
+                            onChange={handleChange}
+                            className="w-full border px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            required
+                        />
+                    </div>
+
+                    {/* Receipt Image */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Receipt Image (optional)</label>
+                        <input
+                            type="file"
+                            name="receipt_image"
+                            onChange={handleChange}
+                            className="w-full border px-4 py-2 rounded-md"
+                        />
+                    </div>
+
+                    {/* Submit Button */}
+                    <div className="text-right">
+                        <button
+                            type="submit"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-medium"
+                        >
+                            Add Expense
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 };

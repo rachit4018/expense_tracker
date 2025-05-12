@@ -1,15 +1,20 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import BASE_URL from "../config"; // Assuming you have a config file for the base URL
-import { useLocation } from "react-router-dom";
+import BASE_URL from "../config";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 
 const Settlements = () => {
     const location = useLocation();
     const user = location.state?.user || {};
+    const navigate = useNavigate();
     const [settlements, setSettlements] = useState([]);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
-    const [csrfToken, setCsrfToken] = useState(""); // State to store CSRF token
+    const [csrfToken, setCsrfToken] = useState("");
+    const [sortConfig, setSortConfig] = useState({
+        key: "group_name",  // Default sort by group_name
+        direction: "asc",   // Default sort direction
+    });
 
     // Fetch CSRF Token (only once when the component mounts)
     useEffect(() => {
@@ -17,14 +22,14 @@ const Settlements = () => {
             try {
                 const response = await axios.get(`${BASE_URL}csrf/`, { withCredentials: true });
                 const csrfToken = response.headers["x-csrftoken"] || response.data.csrfToken;
-                setCsrfToken(csrfToken); // Store CSRF token in state
+                setCsrfToken(csrfToken);
             } catch (error) {
                 console.error("Failed to fetch CSRF token", error);
             }
         };
 
         fetchCSRFToken();
-    }, []); // Empty dependency array to run only once
+    }, []);
 
     // Fetch settlements data when the component mounts or when user.username changes
     useEffect(() => {
@@ -60,9 +65,25 @@ const Settlements = () => {
         if (user.username) {
             fetchSettlements();
         }
-    }, [user.username]); // Only depend on user.username
+    }, [user.username]);
 
-    // Handle marking a settlement as completed
+    // Handle sorting by column
+    const handleSort = (key) => {
+        let direction = "asc";
+        if (sortConfig.key === key && sortConfig.direction === "asc") {
+            direction = "desc";
+        }
+        setSortConfig({ key, direction });
+
+        const sortedSettlements = [...settlements].sort((a, b) => {
+            if (a[key] < b[key]) return direction === "asc" ? -1 : 1;
+            if (a[key] > b[key]) return direction === "asc" ? 1 : -1;
+            return 0;
+        });
+
+        setSettlements(sortedSettlements);
+    };
+
     const handleMarkCompleted = async (settlementId) => {
         try {
             const token = localStorage.getItem("token");
@@ -86,7 +107,6 @@ const Settlements = () => {
             );
 
             if (response.status === 200) {
-                // Update the settlement status in the state
                 setSettlements((prevSettlements) =>
                     prevSettlements.map((settlement) =>
                         settlement.id === settlementId
@@ -103,58 +123,140 @@ const Settlements = () => {
             setError("Failed to update payment status. Please try again.");
         }
     };
+    const handleLogout = () => {
+        navigate("/");
+    };
+    const handleSettlements = () => {
+        navigate(`/settlements/${user.username}`, { state: { user: user } });
+    };
 
     return (
-        <div>
-            <h1>Your Settlements</h1>
-            {message && <p className="message">{message}</p>}
-            {error && <p className="error">{error}</p>}
+        <div className="min-h-screen bg-pink-50">
+            {/* Navbar */}
+            <nav className="bg-white shadow-md">
+                <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+                <button onClick={() => navigate("/home", { state: { user } })} className="flex items-center">
+                    <h1 className="text-2xl font-bold text-indigo-700">💸 Expense Tracker</h1>
+                    </button>
+                    <div className="flex space-x-4">
+                        <button
+                            onClick={handleSettlements}
+                            className="text-indigo-700 hover:underline font-medium"
+                        >
+                            Settlements
+                        </button>
+                        <button
+                            onClick={handleLogout}
+                            className="text-indigo-700 hover:underline font-medium"
+                        >
+                            Logout
+                        </button>
+                    </div>
+                </div>
+            </nav>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>Group</th>
-                        <th>Amount</th>
-                        <th>Payment Status</th>
-                        <th>Settlement Method</th>
-                        <th>Due Date</th>
-                        <th>Settlement Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {settlements.length > 0 ? (
-                        settlements.map((settlement) => (
-                            <tr key={settlement.id}>
-                                <td>{settlement.group_name}</td>
-                                <td>{settlement.amount}</td>
-                                <td id={`status-${settlement.id}`}>{settlement.payment_status}</td>
-                                <td>{settlement.settlement_method || "Not Specified"}</td>
-                                <td>{settlement.due_date}</td>
-                                <td>{settlement.settlement_date}</td>
-                                <td>
-                                    {settlement.payment_status === "Pending" ? (
-                                        <button
-                                            className="mark-completed"
-                                            onClick={() => handleMarkCompleted(settlement.id)}
-                                        >
-                                            Mark as Completed
-                                        </button>
-                                    ) : (
-                                        "Completed"
+            <div className="max-w-7xl mx-auto px-6 py-10">
+                <h2 className="text-3xl font-semibold text-center text-gray-800 mb-6">Your Settlements</h2>
+
+                {message && <p className="text-green-600 mb-4">{message}</p>}
+                {error && <p className="text-red-600 mb-4">{error}</p>}
+
+                <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
+                    <table className="min-w-full table-auto">
+                        <thead className="bg-indigo-600 text-white">
+                            <tr>
+                                <th
+                                    className="px-6 py-3 text-left cursor-pointer"
+                                    onClick={() => handleSort("group_name")}
+                                >
+                                    Group
+                                    {sortConfig.key === "group_name" && (
+                                        <span>{sortConfig.direction === "asc" ? " ▲" : " ▼"}</span>
                                     )}
-                                </td>
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left cursor-pointer"
+                                    onClick={() => handleSort("amount")}
+                                >
+                                    Amount
+                                    {sortConfig.key === "amount" && (
+                                        <span>{sortConfig.direction === "asc" ? " ▲" : " ▼"}</span>
+                                    )}
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left cursor-pointer"
+                                    onClick={() => handleSort("payment_status")}
+                                >
+                                    Payment Status
+                                    {sortConfig.key === "payment_status" && (
+                                        <span>{sortConfig.direction === "asc" ? " ▲" : " ▼"}</span>
+                                    )}
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left cursor-pointer"
+                                    onClick={() => handleSort("settlement_method")}
+                                >
+                                    Settlement Method
+                                    {sortConfig.key === "settlement_method" && (
+                                        <span>{sortConfig.direction === "asc" ? " ▲" : " ▼"}</span>
+                                    )}
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left cursor-pointer"
+                                    onClick={() => handleSort("due_date")}
+                                >
+                                    Due Date
+                                    {sortConfig.key === "due_date" && (
+                                        <span>{sortConfig.direction === "asc" ? " ▲" : " ▼"}</span>
+                                    )}
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left cursor-pointer"
+                                    onClick={() => handleSort("settlement_date")}
+                                >
+                                    Settlement Date
+                                    {sortConfig.key === "settlement_date" && (
+                                        <span>{sortConfig.direction === "asc" ? " ▲" : " ▼"}</span>
+                                    )}
+                                </th>
+                                <th className="px-6 py-3 text-left">Actions</th>
                             </tr>
-                        ))
-                    ) : (
-                        <tr>
-                            <td colSpan="7" style={{ textAlign: "center" }}>
-                                No settlements found.
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
+                        </thead>
+                        <tbody>
+                            {settlements.length > 0 ? (
+                                settlements.map((settlement) => (
+                                    <tr key={settlement.id} className="border-b">
+                                        <td className="px-6 py-4">{settlement.group_name}</td>
+                                        <td className="px-6 py-4">{settlement.amount}</td>
+                                        <td className="px-6 py-4">{settlement.payment_status}</td>
+                                        <td className="px-6 py-4">{settlement.settlement_method || "Not Specified"}</td>
+                                        <td className="px-6 py-4">{settlement.due_date}</td>
+                                        <td className="px-6 py-4">{settlement.settlement_date}</td>
+                                        <td className="px-6 py-4">
+                                            {settlement.payment_status === "Pending" ? (
+                                                <button
+                                                    onClick={() => handleMarkCompleted(settlement.id)}
+                                                    className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                                                >
+                                                    Mark as Completed
+                                                </button>
+                                            ) : (
+                                                <span className="text-green-600 font-semibold">Completed</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="7" className="text-center py-4 text-gray-500">
+                                        No settlements found.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     );
 };

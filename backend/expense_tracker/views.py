@@ -115,7 +115,7 @@ def login_view(request):
 
         if form.is_valid():
             user = form.get_user()
-            
+            print(user.is_verified)  # Debugging: Check if user is verified
             if user.is_verified:
                 # Generate a JWT token
                 payload = {

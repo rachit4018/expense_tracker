@@ -9,6 +9,7 @@ const Expense = () => {
     const location = useLocation();
     const user = location.state?.user || {};
     const username = user.username;
+
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
     const [categories, setCategories] = useState([]);
@@ -25,6 +26,12 @@ const Expense = () => {
 
     useEffect(() => {
         const token = localStorage.getItem("token");
+        if (!token) {
+            setError("Unauthorized access.");
+            setLoading(false);
+            return;
+        }
+
         const fetchCategories = async () => {
             try {
                 const response = await axios.get(`${BASE_URL}expense/add/${groupId}`, {
@@ -35,7 +42,7 @@ const Expense = () => {
                     withCredentials: true,
                 });
 
-                if (response.data && response.data.categories) {
+                if (Array.isArray(response.data?.categories)) {
                     setCategories(response.data.categories);
                 } else {
                     setError("No categories found.");
@@ -53,47 +60,59 @@ const Expense = () => {
 
     const handleChange = (e) => {
         const { name, value, files } = e.target;
-        setFormData({
-            ...formData,
+        setFormData((prev) => ({
+            ...prev,
             [name]: name === "receipt_image" ? files[0] : value,
-        });
+        }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError("");
+        setMessage("");
 
         const data = new FormData();
+
         Object.entries(formData).forEach(([key, value]) => {
+            if (key === "receipt_image" && !value) return; // Skip empty file
             data.append(key === "groupid" ? "group_id" : key, value);
         });
 
         const token = localStorage.getItem("token");
+
         try {
-            const response = await axios.post(`${BASE_URL}expense/add_expense_api/${groupId}`, data, {
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "multipart/form-data",
-                },
-                withCredentials: true,
-            });
+            const response = await axios.post(
+                `${BASE_URL}expense/add_expense_api/${groupId}`,
+                data,
+                {
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "multipart/form-data",
+                    },
+                    withCredentials: true,
+                }
+            );
 
             if (response.status === 201) {
-                alert("Expense added successfully!");
-                navigate(`/groups/${groupId}`, { state: { user } });
+                setMessage("Expense added successfully!");
+                setTimeout(() => {
+                    navigate(`/groups/${groupId}`, { state: { user } });
+                }, 1000);
             } else {
                 setError(response.data.error || "Failed to add expense.");
             }
         } catch (error) {
             console.error("Error adding expense:", error);
-            setError("Failed to add expense. Please try again.");
+            setError(error.response?.data?.error || "Failed to add expense. Please try again.");
         }
     };
 
     const handleLogout = () => {
         navigate("/");
     };
+
     const handleSettlements = () => {
-        navigate(`/settlements/${user.username}`, { state: { user: user } });
+        navigate(`/settlements/${user.username}`, { state: { user } });
     };
 
     if (loading) return <p className="text-center mt-10">Loading...</p>;
@@ -103,20 +122,14 @@ const Expense = () => {
             {/* Navbar */}
             <nav className="bg-white shadow-md">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-                <button onClick={() => navigate("/home", { state: { user } })} className="flex items-center">
-                    <h1 className="text-2xl font-bold text-indigo-700">💸 Expense Tracker</h1>
+                    <button onClick={() => navigate("/home", { state: { user } })} className="flex items-center">
+                        <h1 className="text-2xl font-bold text-indigo-700">💸 Expense Tracker</h1>
                     </button>
                     <div className="flex space-x-4">
-                        <button
-                            onClick={handleSettlements}
-                            className="text-indigo-700 hover:underline font-medium"
-                        >
+                        <button onClick={handleSettlements} className="text-indigo-700 hover:underline font-medium">
                             Settlements
                         </button>
-                        <button
-                            onClick={handleLogout}
-                            className="text-indigo-700 hover:underline font-medium"
-                        >
+                        <button onClick={handleLogout} className="text-indigo-700 hover:underline font-medium">
                             Logout
                         </button>
                     </div>

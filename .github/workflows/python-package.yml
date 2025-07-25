@@ -3,10 +3,10 @@ name: Dev Branch Tests
 on:
   push:
     branches:
-      - dev  # Trigger on push to the dev branch
+      - '**'  # Trigger on push to the dev branch
   pull_request:
     branches:
-      - dev  # Trigger on pull requests targeting the dev branch
+      - '**'  # Trigger on pull requests targeting the dev branch
 
 jobs:
   test:

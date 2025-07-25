@@ -37,7 +37,8 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import DatabaseError
 from .custom_auth import CustomAuthentication
 from .middleware import JWTAuthMiddleware, CSRFExemptMiddleware
-
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+User = CustomUser  # Assuming CustomUser is your user model
 class BaseAPIView(APIView):
     """
     Base API View to handle common functionality.
@@ -50,15 +51,30 @@ class BaseAPIView(APIView):
 @permission_classes([AllowAny])
 def signup_view(request):
     if request.method == 'POST':
+        data = request.data
+
+        # Check if username or email already exists
+        if User.objects.filter(username=data.get('username')).exists():
+            return Response(
+                {'error': 'A user with that username already exists.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if User.objects.filter(email=data.get('email')).exists():
+            return Response(
+                {'error': 'A user with that email already exists.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Use request.data for JSON input
-        form = CustomUserCreationForm(request.data)
+        form = CustomUserCreationForm(data)
         if form.is_valid():
             try:
                 # Save the user
                 user = form.save(commit=False)  # Don't save yet to add additional fields
 
                 # Generate the verification code (ensure uniqueness)
-                existing_codes = CustomUser.objects.values_list('verification_code', flat=True)
+                existing_codes = User.objects.values_list('verification_code', flat=True)
                 verification_code = generate_verification_code(existing_codes)
 
                 # Save the verification code and timestamp to the user
@@ -186,7 +202,7 @@ class AddExpenseAPIView(BaseAPIView):
     """
     API View to handle adding an expense to a specific group.
     """  # Only authenticated users can access this view
-
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     def expense_splitter(self, amount, split_type, group_id, due_date):
         """
         Splits the expense equally among group members.
@@ -429,7 +445,9 @@ class AddMemberAPIView(BaseAPIView):
             )
 
 
-@api_view(['POST'])
+@csrf_exempt
+@api_view(['POST'])  # Allow POST requests without CSRF token for API (use cautiously in production)
+@permission_classes([AllowAny])
 def verify_code(request):
     if request.method == 'POST':
         # Use request.data for JSON input
@@ -483,6 +501,7 @@ def verify_code(request):
             status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
 
+@permission_classes([AllowAny])
 class ResendCodeAPIView(APIView):
     """
     API endpoint to resend a verification code to the user's email.

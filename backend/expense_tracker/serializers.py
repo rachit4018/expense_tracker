@@ -10,6 +10,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ExpenseSerializer(serializers.ModelSerializer):
+    receipt_image = serializers.ImageField(required=False, allow_null=True)
     class Meta:
         model = Expense
         fields = '__all__'

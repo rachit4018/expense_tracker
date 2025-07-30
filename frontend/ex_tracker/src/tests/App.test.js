@@ -8,7 +8,7 @@ jest.mock('../components/signup', () => () => <div>Signup Component</div>);
 jest.mock('../components/verifycode', () => () => <div>VerifyCode Component</div>);
 jest.mock('../components/home', () => () => <div>Home Component</div>);
 jest.mock('../components/group', () => () => <div>Group Component</div>);
-jest.mock('../components/settlement', () => () => <div>Settlements Component</div>);
+jest.mock('../components/settlements', () => () => <div>Settlements Component</div>);
 jest.mock('../components/expense', () => () => <div>Expense Component</div>);
 
 describe('App Component', () => {

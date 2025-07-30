@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import Settlements from "../components/Settlements"; // adjust path as needed
+import Settlements from "../components/settlements" // adjust path as needed
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import axios from "axios";
 

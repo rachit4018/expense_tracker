@@ -2,7 +2,9 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import Expense from "../components/expense"; // Adjust the import path if necessary
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import axios from "axios";
+
+import {jest} from '@jest/globals';
+const axios = require('axios');
 
 // Mock Axios
 jest.mock("axios");
@@ -60,7 +62,7 @@ describe("Expense Component", () => {
     await waitFor(() => {
       expect(screen.getByLabelText(/Amount/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Category/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Split Type/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Split_Type/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Date/i)).toBeInTheDocument();
     });
   });

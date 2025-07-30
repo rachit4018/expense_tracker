@@ -250,6 +250,7 @@ const Signup = () => {
             <InputField label="Default Payment Method" type="text" name="default_payment_method" value={formData.default_payment_method} onChange={handleChange} required disabled={loading} />
 
             <button
+              data-testid="signup-submit-button"
               type="submit"
               className={`w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition flex items-center justify-center ${
                 loading ? "opacity-70 cursor-not-allowed" : ""

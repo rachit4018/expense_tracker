@@ -133,8 +133,9 @@ const Expense = () => {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Amount */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                        <label htmlFor='amount' className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
                         <input
+                            id="amount"
                             type="number"
                             name="amount"
                             value={formData.amount}
@@ -148,8 +149,9 @@ const Expense = () => {
 
                     {/* Category */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <label htmlFor='category'className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                         <select
+                            id="category"
                             name="category"
                             value={formData.category}
                             onChange={handleChange}
@@ -165,8 +167,9 @@ const Expense = () => {
 
                     {/* Split Type */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Split Type</label>
+                        <label htmlFor='split_type'className="block text-sm font-medium text-gray-700 mb-1">Split_Type</label>
                         <select
+                            id="split_type"
                             name="split_type"
                             value={formData.split_type}
                             onChange={handleChange}
@@ -178,8 +181,9 @@ const Expense = () => {
 
                     {/* Date */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <label htmlFor='date' className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                         <input
+                            id="date"
                             type="date"
                             name="date"
                             value={formData.date}
@@ -203,6 +207,7 @@ const Expense = () => {
                     {/* Submit Button */}
                     <div className="text-right">
                         <button
+                            data-testid="add-expense-button"
                             type="submit"
                             className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-medium"
                         >

@@ -94,6 +94,7 @@ const Home = () => {
                     </button>
                     <div className="flex space-x-4">
                         <button
+                            data-testid="settlements-button"
                             onClick={handleSettlements}
                             className="text-indigo-700 hover:underline font-medium"
                         >

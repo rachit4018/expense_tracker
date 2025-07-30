@@ -13,7 +13,9 @@ import { BrowserRouter } from "react-router-dom";
 jest.mock("axios");
 
 const renderWithRouter = (ui) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+  return render(
+    React.createElement(BrowserRouter, null, ui)
+  );
 };
 
 describe("Login Component", () => {
@@ -23,7 +25,7 @@ describe("Login Component", () => {
   });
 
   it("renders login form", async () => {
-    renderWithRouter(<Login />);
+    renderWithRouter(React.createElement(Login, null));
 
     expect(await screen.findByText(/Login to Your Account/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Username/i)).toBeInTheDocument();
@@ -33,7 +35,7 @@ describe("Login Component", () => {
   });
 
   it("toggles password visibility", async () => {
-    renderWithRouter(<Login />);
+    renderWithRouter(React.createElement(Login, null));
     const toggleBtn = screen.getByLabelText(/Show password/i);
     fireEvent.click(toggleBtn);
 
@@ -41,6 +43,4 @@ describe("Login Component", () => {
       expect(screen.getByLabelText(/Hide password/i)).toBeInTheDocument();
     });
   });
-
- 
 });

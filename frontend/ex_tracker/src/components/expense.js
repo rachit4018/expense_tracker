@@ -20,7 +20,7 @@ const Expense = () => {
         date: new Date().toISOString().split("T")[0],
         receipt_image: null,
         created_by: username,
-        groupid: groupId,
+        group_id: groupId,
     });
 
     useEffect(() => {
@@ -61,15 +61,16 @@ const Expense = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        const data = new FormData();
-        Object.entries(formData).forEach(([key, value]) => {
-            data.append(key === "groupid" ? "group_id" : key, value);
-        });
-
         const token = localStorage.getItem("token");
+         const payload = new FormData();
+        for (const key in formData) {
+            if (formData[key] !== null && formData[key] !== "") {
+                payload.append(key, formData[key]);
+            }
+        }
+
         try {
-            const response = await axios.post(`${BASE_URL}expense/add_expense_api/${groupId}`, data, {
+            const response = await axios.post(`${BASE_URL}expense/add_expense_api/${groupId}`, payload, {
                 headers: {
                     "Authorization": `Bearer ${token}`,
                     "Content-Type": "multipart/form-data",

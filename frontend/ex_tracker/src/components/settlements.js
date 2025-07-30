@@ -161,7 +161,6 @@ const Settlements = () => {
                 {message && <p className="text-green-600 mb-4">{message}</p>}
                 {error && <p className="text-red-600 mb-4">{error}</p>}
 
-                // ✅ Inside the return JSX: wrap the table in a container with a test id
 <div
   className="overflow-x-auto bg-white shadow-lg rounded-lg"
   data-testid="settlements-table"

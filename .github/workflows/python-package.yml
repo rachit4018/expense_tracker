@@ -104,4 +104,4 @@ jobs:
         env:
           CI: false  # Run tests in CI mode
         run: |
-          npm test -- test/ --watchAll=false
+          npm test -- tests/ --watchAll=false

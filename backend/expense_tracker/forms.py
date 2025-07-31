@@ -7,6 +7,13 @@ class CustomUserCreationForm(UserCreationForm):
         model = CustomUser
         fields = ['username', 'email', 'password1', 'password2', 'college', 'semester', 'default_payment_methods']
 
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if CustomUser.objects.filter(email=email).exists():
+            raise forms.ValidationError("Email is already registered.")
+        return email
+        
+
 class CustomAuthenticationForm(AuthenticationForm):
     class Meta:
         model = CustomUser

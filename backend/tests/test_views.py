@@ -80,7 +80,7 @@ class LoginViewTests(TestCase):
         Test that a user can log in with valid credentials.
         """
         valid_data = {
-            'username': 'testuser',
+            'email': 'testuser@example.com',
             'password': 'testpassword123',
         }
         response = self.client.post(self.login_url, valid_data, format='json')
@@ -92,7 +92,7 @@ class LoginViewTests(TestCase):
         Test that login fails with invalid credentials.
         """
         invalid_data = {
-            'username': 'testuser',
+            'email': 'testuser@example.com',  # Correct email
             'password': 'wrongpassword',  # Incorrect password
         }
         response = self.client.post(self.login_url, invalid_data, format='json')
@@ -111,7 +111,7 @@ class LoginViewTests(TestCase):
             is_verified=False,  # User is not verified
         )
         valid_data = {
-            'username': 'unverifieduser',
+            'email': 'unverifieduser@example.com',
             'password': 'testpassword123',
         }
         response = self.client.post(self.login_url, valid_data, format='json')

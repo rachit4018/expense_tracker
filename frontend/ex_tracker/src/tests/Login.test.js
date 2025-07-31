@@ -28,7 +28,7 @@ describe("Login Component", () => {
     renderWithRouter(React.createElement(Login, null));
 
     expect(await screen.findByText(/Login to Your Account/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Username/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
 
     const passwordInputs = screen.getAllByLabelText(/Password/i);
     expect(passwordInputs[0]).toBeInTheDocument();

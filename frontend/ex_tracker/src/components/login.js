@@ -46,7 +46,7 @@ const InputField = ({
 );
 
 const Login = () => {
-  const [formData, setFormData] = useState({ username: "", password: "" });
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
   const [csrfToken, setCsrfToken] = useState("");
@@ -73,9 +73,13 @@ const Login = () => {
     fetchCSRFToken();
   }, []);
 
-  const validate = () => {
+   const validate = () => {
     const errs = {};
-    if (!formData.username.trim()) errs.username = "Username is required";
+    if (!formData.email.trim()) {
+      errs.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errs.email = "Email is invalid";
+    }
     if (!formData.password) errs.password = "Password is required";
     return errs;
   };
@@ -184,14 +188,14 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} aria-busy={loading}>
             <InputField
-              label="Username"
+              label="Email"
               type="text"
-              name="username"
-              value={formData.username}
+              name="email"
+              value={formData.email}
               onChange={handleChange}
               required
-              autoComplete="username"
-              error={errors.username}
+              autoComplete="email"
+              error={errors.email}
               disabled={loading}
             />
 

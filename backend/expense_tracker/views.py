@@ -119,65 +119,54 @@ def signup_view(request):
             {'error': 'Only POST requests are allowed.'},
             status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
+    
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
-    if request.method == 'POST':
-        print("Request data:", request.data)  # Debugging: Print request data
+    print("Incoming login request data:", request.data)
 
-        # Use request.data for JSON input
-        form = CustomAuthenticationForm(data=request.data)
-        print("Form errors:", form.errors)  # Debugging: Print form errors
+    form = CustomAuthenticationForm(data=request.data)
+    if form.is_valid():
+        user = form.get_user()
+        print("Authenticated user:", user.email)
 
-        if form.is_valid():
-            user = form.get_user()
-            print(user.is_verified)  # Debugging: Check if user is verified
-            if user.is_verified:
-                # Generate a JWT token
-                payload = {
-                    'user_id': user.id,
-                    'username': user.username,
-                    'exp': datetime.now() + timedelta(hours=1),  # Token expires in 1 hour
-                }
-                token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
-
-                # Log the user in
-                login(request, user)
-
-                # Prepare user data to return
-                user_data = {
-                    'username': user.username,
-                    'college': user.college,
-                    'semester': user.semester,
-                    'default_payment_methods': user.default_payment_methods,
-                    'token': token,  # Include the token in the response
-                }
-
-                return Response(user_data, status=status.HTTP_200_OK)
-            else:
-                # Account is not verified
-                return Response(
-                    {'error': 'Account is not verified. Please verify your email.'},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-        else:
-            # Invalid username or password
-            if 'username' in form.errors:
-                error_message = 'Invalid username.'
-            elif 'password' in form.errors:
-                error_message = 'Invalid password.'
-            else:
-                error_message = 'Invalid username or password.'
+        if not user.is_verified:
             return Response(
-                {'error': error_message},
+                {'error': 'Account is not verified. Please verify your email.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-    else:
-        # Handle non-POST requests (optional)
-        return Response(
-            {'error': 'Only POST requests are allowed.'},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
-        )
+
+        # Generate JWT Token
+        payload = {
+            'user_id': user.id,
+            'email': user.email,
+            'exp': datetime.utcnow() + timedelta(hours=1),
+        }
+        token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+
+        login(request, user)
+
+        user_data = {
+            'username': user.username,
+            'email': user.email,
+            'college': user.college,
+            'semester': user.semester,
+            'default_payment_methods': user.default_payment_methods,
+            'token': token,
+        }
+
+        return Response(user_data, status=status.HTTP_200_OK)
+
+    # If form is not valid — handle errors gracefully
+    print("Form validation errors:", form.errors)
+    error_fields = list(form.errors.keys())
+    if 'email' in error_fields:
+        return Response({'error': 'Invalid email.'}, status=status.HTTP_401_UNAUTHORIZED)
+    elif 'password' in error_fields:
+        return Response({'error': 'Invalid password.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    return Response({'error': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class AddExpenseView(BaseAPIView):

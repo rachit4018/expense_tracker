@@ -3,6 +3,7 @@ from django.utils.timezone import now, timedelta
 from rest_framework.test import APIClient
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from decouple import config
 User = get_user_model()
 @pytest.fixture
 def api_client():
@@ -14,7 +15,7 @@ def create_user(db):
         data = {
             "username": "testuser",
             "email": "test@example.com",
-            "password": "TestPass123!",
+            "password": config('password1'),
             "college": "Test College",
             "semester": "3",
             "default_payment_methods": "Cash",
@@ -43,8 +44,8 @@ def test_signup_success(api_client):
     payload = {
         "username": "newuser",
         "email": "new@example.com",
-        "password1": "NewPass123!",
-        "password2": "NewPass123!",
+        "password1": config('password1'),
+        "password2": config('pasasword2'),
         "college": "Test College",
         "semester": "3",
         "default_payment_methods": "Cash"
@@ -58,8 +59,8 @@ def test_signup_existing_email(api_client, create_user):
     payload = {
         "username": "dupuser",
         "email": "dup@example.com",
-        "password1": "Pass123!",
-        "password2": "Pass123!",
+        "password1": config('password1'),
+        "password2": config('password1'),
         "college": "Test College",
         "semester": "3",
         "default_payment_methods": "Cash"
@@ -70,15 +71,15 @@ def test_signup_existing_email(api_client, create_user):
     assert "already exists" in response.data["error"]
 
 def test_login_success(api_client, create_user):
-    user = create_user(password="TestPass123!")
-    payload = {"email": user.email, "password": "TestPass123!"}
+    user = create_user(password=config('password'))
+    payload = {"email": user.email, "password": config('password')}
     response = api_client.post(login_url, payload, format="json")
     assert response.status_code == 200
     assert "token" in response.data
 
 def test_login_unverified_user(api_client, create_user):
-    user = create_user(is_verified=False, password="TestPass123!")
-    payload = {"email": user.email, "password": "TestPass123!"}
+    user = create_user(is_verified=False, password=config('password'))
+    payload = {"email": user.email, "password": config('password')}
     response = api_client.post(login_url, payload, format="json")
     assert response.status_code == 401
     assert "not verified" in response.data["error"]

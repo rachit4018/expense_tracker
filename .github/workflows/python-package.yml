@@ -74,7 +74,7 @@ jobs:
       - name: Run backend tests
         working-directory: ./backend
         run: |
-          python manage.py test
+          pytest
 
       # Step 8: Set up Node.js for frontend
       - name: Set up Node.js

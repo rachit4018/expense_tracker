@@ -76,6 +76,7 @@ def signup_view(request):
                 # Generate the verification code (ensure uniqueness)
                 existing_codes = User.objects.values_list('verification_code', flat=True)
                 verification_code = generate_verification_code(existing_codes)
+                print("Generated Verification Code:", verification_code)
 
                 # Save the verification code and timestamp to the user
                 user.verification_code = verification_code
@@ -667,7 +668,7 @@ class CreateGroupAPI(BaseAPIView):
     def post(self, request):
         try:
             print("Authenticated User:", request.user)  # Debugging: Check the authenticated user
-
+            print(request.data)  # Debugging: Log the request data
             # Add the creator to the request data
             username = request.headers.get("X-Username")
             if not username:
@@ -684,9 +685,19 @@ class CreateGroupAPI(BaseAPIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            request.data["created_by"] = username
+            # request.data["created_by"] = username
             print("Request Data:", request.data)  # Debugging: Log the request data
 
+
+            # check if the group with the same name already exists
+            group_name = request.data.get('name')
+            if Group.objects.filter(name=group_name, created_by=user_to_add).exists():
+                return Response(
+                    {"error": "A group with this name already exists."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Create the group form with the request data
             # Validate the form
             form = GroupForm(request.data)
             if form.is_valid():

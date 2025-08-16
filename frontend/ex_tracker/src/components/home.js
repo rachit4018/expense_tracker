@@ -55,7 +55,7 @@ const Home = () => {
             const token = localStorage.getItem("token");
             await axios.post(
                 `${BASE_URL}api/groups/create/`,
-                { name: groupName },
+                { name: groupName, created_by: user.username },
                 {
                     headers: {
                         "Authorization": `Bearer ${token}`,

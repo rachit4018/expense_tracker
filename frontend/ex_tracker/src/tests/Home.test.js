@@ -18,6 +18,7 @@ jest.mock("react-router-dom", () => ({
         college: "Test College",
         semester: "5th",
         default_payment_methods: "UPI",
+        created_by: "testuser",
       },
     },
   }),
@@ -85,7 +86,7 @@ describe("Home Component", () => {
     await waitFor(() => {
       expect(axios.post).toHaveBeenCalledWith(
         expect.stringContaining("create"),
-        { name: "New Test Group" },
+        { name: "New Test Group", created_by: "testuser" },
         expect.any(Object)
       );
     });

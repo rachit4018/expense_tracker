@@ -45,7 +45,7 @@ def test_signup_success(api_client):
         "username": "newuser",
         "email": "new@example.com",
         "password1": config('password1'),
-        "password2": config('pasasword2'),
+        "password2": config('password2'),
         "college": "Test College",
         "semester": "3",
         "default_payment_methods": "Cash"

@@ -63,9 +63,9 @@ jobs:
           DB_HOST: localhost
           DB_PORT: 5432
           # 👇 Test creds from testCreds env
-          TEST_PASSWORD: ${{ secrets.password }}
-          TEST_PASSWORD1: ${{ secrets.password1 }}
-          TEST_PASSWORD2: ${{ secrets.password2 }}
+          PASSWORD: ${{ secrets.password }}
+          PASSWORD1: ${{ secrets.password1 }}
+          PASSWORD2: ${{ secrets.password2 }}
         run: |
           echo "DB_NAME=$DB_NAME" >> $GITHUB_ENV
           echo "DB_USER=$DB_USER" >> $GITHUB_ENV
@@ -80,9 +80,9 @@ jobs:
         working-directory: ./backend
         env:
           # 👇 Pass test creds to pytest so test files can use them
-          TEST_PASSWORD: ${{ secrets.password }}
-          TEST_PASSWORD1: ${{ secrets.password1 }}
-          TEST_PASSWORD2: ${{ secrets.password2 }}
+          PASSWORD: ${{ secrets.password }}
+          PASSWORD1: ${{ secrets.password1 }}
+          PASSWORD2: ${{ secrets.password2 }}
         run: |
           pytest
 

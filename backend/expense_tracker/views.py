@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import ExpenseSerializer, GroupSerializer,SettlementSerializer,CategorySerializer
+from .serializers import ExpenseSerializer, GroupSerializer,SettlementSerializer,CategorySerializer,SignupSerializer
 from django.contrib import messages
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -46,7 +46,6 @@ class BaseAPIView(APIView):
     authentication_classes = [CustomAuthentication]  # Use custom JWT authentication
     permission_classes = [IsAuthenticated]  # Ensure user is authenticated
 
-@csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def signup_view(request):
@@ -77,48 +76,22 @@ def signup_view(request):
                 existing_codes = User.objects.values_list('verification_code', flat=True)
                 verification_code = generate_verification_code(existing_codes)
                 print("Generated Verification Code:", verification_code)
+    serializer = SignupSerializer(data=request.data)
 
-                # Save the verification code and timestamp to the user
-                user.verification_code = verification_code
-                user.verification_code_created_at = now()
-                user.is_verified = False  # Mark the user as unverified
-                user.save()
+    if serializer.is_valid():
+        user = serializer.save()
 
-                # Send the verification code to the user's email
-                send_verification_email(user, verification_code)
+        # Send verification email
+        send_verification_email(user, user.verification_code)
 
-                # Return success response
-                return Response(
-                    {'message': 'Sign up successful! Please check your email for the verification code.'},
-                    status=status.HTTP_201_CREATED
-                )
-            except Exception as e:
-                # Handle any unexpected errors during signup
-                return Response(
-                    {'error': f'An error occurred during signup: {str(e)}'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-        else:
-            # If form is not valid, return form errors
-            errors = form.errors.as_json()
-            errors_dict = json.loads(errors)
-            error_messages = []
-
-            # Extract error messages from the errors dictionary
-            for field, field_errors in errors_dict.items():
-                for error in field_errors:
-                    error_messages.append(f"{field}: {error['message']}")
-
-            # Return the simplified error messages
-            return Response(
-                {'error': 'There was an error with your signup.', 'details': error_messages},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-    else:
-        # Handle non-POST requests (optional)
         return Response(
-            {'error': 'Only POST requests are allowed.'},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
+            {'message': 'Sign up successful! Please check your email for the verification code.'},
+            status=status.HTTP_201_CREATED
+        )
+    else:
+        return Response(
+            {'details': serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST
         )
     
 @csrf_exempt

@@ -93,12 +93,12 @@ const Signup = () => {
     e.preventDefault();
     setError("");
     setMessages([]);
-
+  
     if (formData.password1 !== formData.password2) {
       setError("Passwords do not match.");
       return;
     }
-
+  
     setLoading(true);
     try {
       const response = await axios.post(
@@ -112,29 +112,42 @@ const Signup = () => {
           withCredentials: true,
         }
       );
-
+  
+      // Handle successful signup
       if (response.status === 201) {
-        setMessages(["Sign up successful! Redirecting to verification page..."]);
-        setTimeout(() => navigate("/verifycode"), 1200);
-      } else {
-        setMessages(response.data.messages || []);
+        setMessages([response.data.message || "Signup successful! Redirecting..."]);
+        setTimeout(() => navigate("/verifycode"), 1500);
       }
     } catch (err) {
       if (err.response) {
-        setError(err.response.data.error || "Signup failed. Please check your details.");
-        if (err.response.data.details) {
-          const details = Array.isArray(err.response.data.details)
-            ? err.response.data.details
-            : [err.response.data.details];
-          setMessages(details);
+        const { error, details } = err.response.data;
+  
+        // Show general error message
+        if (error) {
+          setError(error);
+        }
+  
+        // Show specific field-level or other messages
+        if (details) {
+          if (Array.isArray(details)) {
+            setMessages(details);
+          } else if (typeof details === "object") {
+            const flattenedMessages = Object.entries(details).flatMap(([field, msgs]) =>
+              Array.isArray(msgs) ? msgs.map(msg => `${field}: ${msg}`) : `${field}: ${msgs}`
+            );
+            setMessages(flattenedMessages);
+          } else {
+            setMessages([details.toString()]);
+          }
         }
       } else {
-        setError("An error occurred while submitting.");
+        setError("An unexpected error occurred. Please try again.");
       }
     } finally {
       setLoading(false);
     }
   };
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-200 via-purple-200 to-pink-100 flex flex-col relative overflow-hidden">

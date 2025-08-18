@@ -1,14 +1,11 @@
 module.exports = {
-    setupFilesAfterEnv: ["<rootDir>/setupTests.js"], // ✅ Fix path issue
-    testEnvironment: "jest-environment-jsdom",
-    transform: {
-      "^.+\\.jsx?$": "babel-jest"
-    },
-    transformIgnorePatterns: [
-      "node_modules/(?!axios)" // Ensure Jest transforms axios
-    ],
-    moduleNameMapper: {
-        axios: 'axios/dist/node/axios.cjs',
-    },
-  };
-  
+  setupFilesAfterEnv: ["<rootDir>/setupTests.js"],
+  testEnvironment: "jest-environment-jsdom",
+  transform: {
+    "^.+\\.[jt]sx?$": "babel-jest",
+  },
+  transformIgnorePatterns: [
+    "../node_modules/(?!(axios)/)", // ✅ Fix ESM packages like axios
+  ],
+  moduleFileExtensions: ["js", "jsx"],
+};

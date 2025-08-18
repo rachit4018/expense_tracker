@@ -184,6 +184,7 @@ const VerifyCode = () => {
             <InputField label="Verification Code" type="text" name="code" value={formData.code} onChange={handleChange} required autoComplete="off" disabled={loading} />
 
             <button
+              data-testid="verify-button"
               type="submit"
               className={`w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition flex items-center justify-center ${
                 loading ? "opacity-70 cursor-not-allowed" : ""

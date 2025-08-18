@@ -188,6 +188,7 @@ const Group = () => {
                                     ))}
                                 </select>
                                 <button
+                                    data-testid="add-member-button"
                                     onClick={handleAddMember}
                                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md w-full"
                                 >

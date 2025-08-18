@@ -7,7 +7,7 @@ import Signup from './components/signup';
 import VerifyCode from './components/verifycode';
 import Home from './components/home';
 import Group from './components/group';
-import Settlements from './components/settlement';
+import Settlements from './components/settlements';
 import Expense from './components/expense';
 import Resend from './components/resend';
 

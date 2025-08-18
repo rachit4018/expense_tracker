@@ -55,7 +55,7 @@ const Home = () => {
             const token = localStorage.getItem("token");
             await axios.post(
                 `${BASE_URL}api/groups/create/`,
-                { name: groupName },
+                { name: groupName, created_by: user.username },
                 {
                     headers: {
                         "Authorization": `Bearer ${token}`,
@@ -94,6 +94,7 @@ const Home = () => {
                     </button>
                     <div className="flex space-x-4">
                         <button
+                            data-testid="settlements-button"
                             onClick={handleSettlements}
                             className="text-indigo-700 hover:underline font-medium"
                         >

@@ -1,14 +1,14 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import App from '../App';
-import "@testing-library/jest-dom/extend-expect";
+// import "@testing-library/jest-dom/extend-expect";
 // Mock components to avoid rendering their actual logic
 jest.mock('../components/login', () => () => <div>Login Component</div>);
 jest.mock('../components/signup', () => () => <div>Signup Component</div>);
 jest.mock('../components/verifycode', () => () => <div>VerifyCode Component</div>);
 jest.mock('../components/home', () => () => <div>Home Component</div>);
 jest.mock('../components/group', () => () => <div>Group Component</div>);
-jest.mock('../components/settlement', () => () => <div>Settlements Component</div>);
+jest.mock('../components/settlements', () => () => <div>Settlements Component</div>);
 jest.mock('../components/expense', () => () => <div>Expense Component</div>);
 
 describe('App Component', () => {
@@ -57,6 +57,6 @@ describe('App Component', () => {
   test('renders Resend code component for the /resend/', () => {
     window.history.pushState({}, '', '/resend/');
     render(<App />);
-    expect(screen.getByText('Resend Verification Code')), toBeInTheDocument();
+    expect(screen.getByText('Resend Verification Code')).toBeInTheDocument();
   });
 });

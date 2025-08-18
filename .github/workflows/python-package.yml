@@ -3,10 +3,10 @@ name: Dev Branch Tests
 on:
   push:
     branches:
-      - dev  # Trigger on push to the dev branch
+      - '**'
   pull_request:
     branches:
-      - dev  # Trigger on pull requests targeting the dev branch
+      - '**'
 
 jobs:
   test:
@@ -14,14 +14,14 @@ jobs:
 
     services:
       postgres:
-        image: postgres:13  # Use the PostgreSQL version you need
+        image: postgres:13
         env:
-          POSTGRES_USER: testuser  # Database username
-          POSTGRES_PASSWORD: testpassword  # Database password
-          POSTGRES_DB: testdb  # Database name
+          POSTGRES_USER: testuser      # DB credentials (unchanged)
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
         ports:
-          - 5432:5432  # Expose PostgreSQL port
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5  # Health check
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
       # Step 1: Checkout the repository
@@ -32,7 +32,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'  # Replace with your Python version
+          python-version: '3.9'
 
       # Step 3: Cache pip dependencies
       - name: Cache pip dependencies
@@ -50,39 +50,40 @@ jobs:
           pip install -r requirements.txt
 
       # Step 5: Wait for PostgreSQL to be ready
-      - name: Wait for PostgreSQL to be ready
+      - name: Wait for PostgreSQL
         run: |
           timeout 20s bash -c 'until pg_isready -h localhost -p 5432; do sleep 1; done; echo "PostgreSQL is ready"'
 
-      # Step 6: Set up environment variables for PostgreSQL
-      - name: Set up environment variables
+      # Step 6: Set up PostgreSQL environment variables
+      - name: Set DB environment variables
         working-directory: ./backend
-        env:
-          DB_NAME: testdb
-          DB_USER: testuser
-          DB_PASSWORD: testpassword
-          DB_HOST: localhost
-          DB_PORT: 5432
         run: |
-          echo "DB_NAME=$DB_NAME" >> $GITHUB_ENV
-          echo "DB_USER=$DB_USER" >> $GITHUB_ENV
-          echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
-          echo "DB_HOST=$DB_HOST" >> $GITHUB_ENV
-          echo "DB_PORT=$DB_PORT" >> $GITHUB_ENV
+          echo "DB_NAME=testdb" >> $GITHUB_ENV
+          echo "DB_USER=testuser" >> $GITHUB_ENV
+          echo "DB_PASSWORD=testpassword" >> $GITHUB_ENV
+          echo "DB_HOST=localhost" >> $GITHUB_ENV
+          echo "DB_PORT=5432" >> $GITHUB_ENV
 
-      # Step 7: Run backend tests
+      # Step 7: Set test credentials from GitHub secrets
+      - name: Set test credentials
+        run: |
+          echo "password=${{ secrets.password }}" >> $GITHUB_ENV
+          echo "password1=${{ secrets.password1 }}" >> $GITHUB_ENV
+          echo "password2=${{ secrets.password2 }}" >> $GITHUB_ENV
+
+      # Step 8: Run backend tests
       - name: Run backend tests
         working-directory: ./backend
         run: |
-          python manage.py test
+          pytest
 
-      # Step 8: Set up Node.js for frontend
+      # Step 9: Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'  # Replace with your Node.js version
+          node-version: '16'
 
-      # Step 9: Cache npm dependencies
+      # Step 10: Cache npm dependencies
       - name: Cache npm dependencies
         uses: actions/cache@v3
         with:
@@ -91,17 +92,17 @@ jobs:
           restore-keys: |
             npm-${{ runner.os }}-
 
-      # Step 10: Install frontend dependencies
+      # Step 11: Install frontend dependencies
       - name: Install frontend dependencies
         working-directory: ./frontend/ex_tracker
         run: |
           npm install
 
-      # Step 11: Run frontend tests
+      # Step 12: Run frontend tests
       - name: Run frontend tests
         working-directory: ./frontend/ex_tracker
-        continue-on-error: true  # Continue even if tests fail
+        continue-on-error: true
         env:
-          CI: true  # Run tests in CI mode
+          CI: false
         run: |
-          npm test -- test/ --watchAll=false
+          npm test -- tests/ --watchAll=false

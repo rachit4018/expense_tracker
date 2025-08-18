@@ -15,10 +15,29 @@ class CustomUser(AbstractUser):
     is_verified = models.BooleanField(default=False)
 
 class Category(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    CATEGORY_CHOICES = [
+        ("Food", "Food"),
+        ("Travel", "Travel"),
+        ("Rent", "Rent"),
+        ("Groceries", "Groceries"),
+        ("Utilities", "Utilities"),
+        ("Entertainment", "Entertainment"),
+        ("Medical", "Medical"),
+        ("Education", "Education"),
+        ("Shopping", "Shopping"),
+        ("Others", "Others"),
+    ]
+
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        choices=CATEGORY_CHOICES
+    )
+
     def __str__(self):
         return self.name
-
+    
+    
 class Expense(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)

@@ -72,7 +72,7 @@ def test_signup_existing_email(api_client, create_user):
 
 def test_login_success(api_client, create_user):
     user = create_user(password=config('password'))
-    payload = {"email": user.email, "password": config('password')}
+    payload = {"email": user.email, "password": config('password'),"is_verified": True}
     response = api_client.post(login_url, payload, format="json")
     assert response.status_code == 200
     assert "token" in response.data

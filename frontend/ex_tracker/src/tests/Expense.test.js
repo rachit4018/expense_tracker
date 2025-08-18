@@ -62,7 +62,7 @@ describe("Expense Component", () => {
     await waitFor(() => {
       expect(screen.getByLabelText(/Amount/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Category/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Split_Type/i)).toBeInTheDocument();
+      expect(screen.getByTestId("split_type")).toBeInTheDocument();
       expect(screen.getByLabelText(/Date/i)).toBeInTheDocument();
     });
   });

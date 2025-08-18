@@ -7,6 +7,7 @@ from django.urls import reverse_lazy
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.hashers import check_password
 from .forms import CustomUserCreationForm, CustomAuthenticationForm
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -49,99 +50,109 @@ class BaseAPIView(APIView):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def signup_view(request):
-    if request.method == 'POST':
-        data = request.data
+    data = request.data
 
-        # Check if username or email already exists
-        if User.objects.filter(username=data.get('username')).exists():
-            return Response(
-                {'error': 'A user with that username already exists.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    # Required fields for this frontend
+    required_fields = ['username', 'email', 'password1', 'password2', 'college', 'semester', 'default_payment_methods']
+    missing_fields = [field for field in required_fields if not data.get(field)]
+    if missing_fields:
+        return Response(
+            {'error': f'Missing fields: {", ".join(missing_fields)}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-        if User.objects.filter(email=data.get('email')).exists():
-            return Response(
-                {'error': 'A user with that email already exists.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    # Password match validation
+    if data['password1'] != data['password2']:
+        return Response(
+            {'error': 'Passwords do not match.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-        # Use request.data for JSON input
-        form = CustomUserCreationForm(data)
-        if form.is_valid():
-            try:
-                # Save the user
-                user = form.save(commit=False)  # Don't save yet to add additional fields
+    # Check if username or email already exists
+    if User.objects.filter(username=data['username']).exists():
+        return Response(
+            {'error': 'A user with that username already exists.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    if User.objects.filter(email=data['email']).exists():
+        return Response(
+            {'error': 'A user with that email already exists.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-                # Generate the verification code (ensure uniqueness)
-                existing_codes = User.objects.values_list('verification_code', flat=True)
-                verification_code = generate_verification_code(existing_codes)
-                print("Generated Verification Code:", verification_code)
-    serializer = SignupSerializer(data=request.data)
+    # Generate unique verification code
+    existing_codes = User.objects.values_list('verification_code', flat=True)
+    verification_code = generate_verification_code(existing_codes)
+    data['verification_code'] = verification_code
 
+    # Use serializer to create the user
+    serializer = SignupSerializer(data=data)
     if serializer.is_valid():
-        user = serializer.save()
+        user = serializer.save()  # Save user to DB
 
         # Send verification email
-        send_verification_email(user, user.verification_code)
+        send_verification_email(user, verification_code)
 
         return Response(
             {'message': 'Sign up successful! Please check your email for the verification code.'},
             status=status.HTTP_201_CREATED
         )
-    else:
-        return Response(
-            {'details': serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-@csrf_exempt
+
+    # Return serializer errors
+    return Response(
+        {'details': serializer.errors},
+        status=status.HTTP_400_BAD_REQUEST
+    )
+@csrf_exempt  # Allow POST requests without CSRF token for API (use cautiously in production)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
-    print("Incoming login request data:", request.data)
+    """
+    Login using email and password with detailed error messages.
+    """
+    data = request.data
+    email = data.get('email')
+    password = data.get('password')
 
-    form = CustomAuthenticationForm(data=request.data)
-    if form.is_valid():
-        user = form.get_user()
-        print("Authenticated user:", user.email)
+    # Check if email and password are provided
+    if not email:
+        return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not password:
+        return Response({'error': 'Password is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not user.is_verified:
-            return Response(
-                {'error': 'Account is not verified. Please verify your email.'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+    # Check if user exists
+    try:
+        user = CustomUser.objects.get(email=email)
+    except CustomUser.DoesNotExist:
+        return Response({'error': 'No account found with this email.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        # Generate JWT Token
-        payload = {
-            'user_id': user.id,
-            'email': user.email,
-            'exp': datetime.utcnow() + timedelta(hours=1),
-        }
-        token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+    # Check password
+    if not check_password(password, user.password):
+        return Response({'error': 'Incorrect password.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        login(request, user)
+    # Check if user is verified
+    if not getattr(user, 'is_verified', False):
+        return Response({'error': 'Account not verified. Please check your email.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        user_data = {
-            'username': user.username,
-            'email': user.email,
-            'college': user.college,
-            'semester': user.semester,
-            'default_payment_methods': user.default_payment_methods,
-            'token': token,
-        }
+    # Generate JWT token
+    payload = {
+        'user_id': user.id,
+        'email': user.email,
+        'exp': datetime.utcnow() + timedelta(hours=1),
+    }
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
 
-        return Response(user_data, status=status.HTTP_200_OK)
+    # Prepare response
+    user_data = {
+        'username': user.username,
+        'email': user.email,
+        'college': getattr(user, 'college', ''),
+        'semester': getattr(user, 'semester', ''),
+        'default_payment_methods': getattr(user, 'default_payment_methods', ''),
+        'token': token,
+    }
 
-    # If form is not valid — handle errors gracefully
-    print("Form validation errors:", form.errors)
-    error_fields = list(form.errors.keys())
-    if 'email' in error_fields:
-        return Response({'error': 'Invalid email.'}, status=status.HTTP_401_UNAUTHORIZED)
-    elif 'password' in error_fields:
-        return Response({'error': 'Invalid password.'}, status=status.HTTP_401_UNAUTHORIZED)
-
-    return Response({'error': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
-
+    return Response(user_data, status=status.HTTP_200_OK)
 
 class AddExpenseView(BaseAPIView):
     def get (self, request, group_id):

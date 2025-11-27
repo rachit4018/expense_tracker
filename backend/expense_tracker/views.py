@@ -722,3 +722,69 @@ class CreateGroupAPI(BaseAPIView):
                 {"error": f"An unexpected error occurred: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+# Reset Password Logic
+# Generate Token and Send Email View
+
+from django.utils.crypto import get_random_string
+from datetime import timedelta
+from django.utils import timezone
+from .utils import send_reset_password_email
+from .models import PasswordResetToken, CustomUser
+
+@permission_classes([AllowAny])
+class ResetPasswordView(APIView):
+    def post(self,request):
+        try:
+            user = CustomUser.objects.get(email=request.data.get('email'))
+        
+        except CustomUser.DoesNotExist:
+            return Response({"error": "No user found with this email."},status = status.HTTP_404_NOT_FOUND)
+
+        # Generate a unique token
+        token = get_random_string(50)
+        expiry = timezone.now() + timedelta(minutes=10)
+        reset_link = f"http://localhost:3000/reset-password/{token}/"  # Hardcoded link
+        PasswordResetToken.objects.create(user=user, token=token, expiry=expiry)
+        # Send email with the token 
+        # Token valid for 10 minutes
+        email = send_reset_password_email(user,reset_link)
+        if email:
+            return Response({"message": "Password reset link has been sent to your email."},status = status.HTTP_200_OK)
+        else:
+            return Response({"error": "Failed to send email. Please try again later."},status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+
+@permission_classes([AllowAny])
+class ResetPasswordConfirmView(APIView):
+    def post(self,request,token):
+        try:
+            reset_token = PasswordResetToken.objects.get(token=token)
+        except PasswordResetToken.DoesNotExist:
+            return Response({"error": "Invalid or expired token."},status = status.HTTP_404_NOT_FOUND)
+        
+        if reset_token.expiry < timezone.now():
+            reset_token.delete()  # Delete expired token
+            return Response({"error": "Token has expired."},status = status.HTTP_400_BAD_REQUEST)
+        
+        new_password = request.data.get('new_password')
+        confirm_password = request.data.get('confirm_password')
+
+        if not new_password or not confirm_password:
+            return Response({"error": "Both password fields are required."},status = status.HTTP_400_BAD_REQUEST)
+
+        if new_password != confirm_password:
+            return Response({"error": "Passwords do not match."},status = status.HTTP_400_BAD_REQUEST)
+    
+        try:
+        
+            user = reset_token.user
+            user.set_password(new_password)
+            user.save()
+            reset_token.delete()  # Invalidate the token after use
+
+            return Response({"message": "Password has been reset successfully."},status = status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)},status = status.HTTP_500_INTERNAL_SERVER_ERROR)

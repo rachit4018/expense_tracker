@@ -167,7 +167,7 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'pandyarachit1525@gmail.com'
-EMAIL_HOST_PASSWORD = 'vvntzlciksvseffx'
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')  # Use environment variable for security
 DEFAULT_FROM_EMAIL = 'pandyarachit1525@gmail.com'
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",

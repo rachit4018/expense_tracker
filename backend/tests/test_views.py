@@ -116,3 +116,12 @@ class LoginViewTests(TestCase):
         response = self.client.post(self.login_url, valid_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIn('error', response.data)
+
+
+# class PasswordResetViewTests(TestCase):
+#     def setUp(self):
+#         # Use APIClient with CSRF checks disabled
+#         self.client = APIClient(enforce_csrf_checks=False)
+#         self.reset_password_url = reverse('reset_password')  # Use the correct URL pattern name
+#         self.user = CustomUser.objects.create_user(
+#             username='testuser',

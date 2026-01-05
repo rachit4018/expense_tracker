@@ -27,4 +27,9 @@ urlpatterns = [
     path('settlements/api/<int:settlementId>/', views.UpdatePaymentStatusAPIView.as_view(), name='settlement_view'),
     path("csrf/", views.csrf_token_view, name="csrf_token"),
 
+
+    # reset password urls
+    path('reset_password/<str:token>/',views.ResetPasswordConfirmView.as_view(),name='reset_password_confirm'),
+    path('reset_password/',views.ResetPasswordView.as_view(),name='reset_password'),
+
 ]

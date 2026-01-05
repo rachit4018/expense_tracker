@@ -23,7 +23,7 @@ class CustomAuthenticationForm(forms.Form):
             except User.DoesNotExist:
                 raise forms.ValidationError(_("Invalid email or password"))
 
-            user = authenticate(username=user_obj.username, password=password)
+            user = authenticate(email=user_obj.email, password=password)
 
             if user is None:
                 raise forms.ValidationError(_("Invalid email or password"))

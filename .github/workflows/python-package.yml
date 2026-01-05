@@ -63,6 +63,7 @@ jobs:
           echo "DB_PASSWORD=testpassword" >> $GITHUB_ENV
           echo "DB_HOST=localhost" >> $GITHUB_ENV
           echo "DB_PORT=5432" >> $GITHUB_ENV
+          echo "EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}" >> $GITHUB_ENV
 
       # Step 7: Set test credentials from GitHub secrets
       - name: Set test credentials

@@ -221,6 +221,12 @@ const Login = () => {
               </button>
             </InputField>
 
+            {/* Reset Password Link  */}
+
+            <p className="text-right text-sm text-indigo-600 hover:underline mb-3">
+              <a href="/reset_password">Forgot Password?</a>
+            </p>
+
             <button
               type="submit"
               className={`w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition flex items-center justify-center ${

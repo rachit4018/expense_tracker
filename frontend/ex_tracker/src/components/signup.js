@@ -54,7 +54,7 @@ const Signup = () => {
     password2: "",
     college: "",
     semester: "",
-    default_payment_method: "",
+    default_payment_methods: "",
   });
   const [messages, setMessages] = useState([]);
   const [error, setError] = useState("");
@@ -260,7 +260,7 @@ const Signup = () => {
             </InputField>
             <InputField label="College" type="text" name="college" value={formData.college} onChange={handleChange} required autoComplete="organization" disabled={loading} />
             <InputField label="Semester" type="text" name="semester" value={formData.semester} onChange={handleChange} required disabled={loading} />
-            <InputField label="Default Payment Method" type="text" name="default_payment_method" value={formData.default_payment_method} onChange={handleChange} required disabled={loading} />
+            <InputField label="Default Payment Method" type="text" name="default_payment_methods" value={formData.default_payment_methods} onChange={handleChange} required disabled={loading} />
 
             <button
               data-testid="signup-submit-button"

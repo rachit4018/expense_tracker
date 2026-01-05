@@ -11,6 +11,7 @@ import Settlements from './components/settlements';
 import Expense from './components/expense';
 import Resend from './components/resend';
 import ResetPassword from './components/resetpassword';
+import ResendPasswordConfirm from './components/resendpasswordconfirm';
 
 function App() {
   return (
@@ -25,7 +26,7 @@ function App() {
        <Route path="/expense/:groupId" element={<Expense />} />
        <Route path="/resend" element={<Resend />} />
        <Route path="/reset_password" element={<ResetPassword />} />
-       <Route path="/reset_password/:token" element={<ResetPassword />} />
+       <Route path="/reset-password/:token" element={<ResendPasswordConfirm />} />
 
      </Routes>
    </Router>

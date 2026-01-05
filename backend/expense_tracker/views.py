@@ -745,7 +745,10 @@ class ResetPasswordView(APIView):
         token = get_random_string(50)
         expiry = timezone.now() + timedelta(minutes=10)
         reset_link = f"http://localhost:3000/reset-password/{token}/"  # Hardcoded link
-        PasswordResetToken.objects.create(user=user, token=token, expiry=expiry)
+        try:
+            PasswordResetToken.objects.create(user=user, token=token, expiry=expiry)
+        except Exception as e:
+            return Response({"error": "Failed to create reset token."},status = status.HTTP_500_INTERNAL_SERVER_ERROR)
         # Send email with the token 
         # Token valid for 10 minutes
         email = send_reset_password_email(user,reset_link)

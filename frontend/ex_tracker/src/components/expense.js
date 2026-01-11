@@ -34,7 +34,7 @@ const Expense = () => {
 
     const fetchCategories = async () => {
       try {
-        const response = await axios.get(`${BASE_URL}expense/add/${groupId}`, {
+        const response = await axios.get(`${BASE_URL}api/v1/categories/`, {
           headers: {
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -81,7 +81,7 @@ const Expense = () => {
 
     try {
       const response = await axios.post(
-        `${BASE_URL}expense/add_expense_api/${groupId}`,
+        `${BASE_URL}api/v1/expenses/${groupId}/add/`,
         data,
         {
           headers: {

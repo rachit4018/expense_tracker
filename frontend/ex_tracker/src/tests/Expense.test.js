@@ -88,10 +88,12 @@ describe("Expense Component", () => {
 
     await waitFor(() =>
       expect(axios.post).toHaveBeenCalledWith(
-        expect.stringContaining("add_expense_api"),
-        expect.any(FormData),
+        expect.stringContaining("/expenses/1/add/"),
+        expect.anything(),
         expect.objectContaining({
-          headers: expect.any(Object),
+          headers: expect.objectContaining({
+        Authorization: expect.any(String)
+          }),
         })
       )
     );

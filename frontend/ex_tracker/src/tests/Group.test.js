@@ -39,10 +39,10 @@ const mockUser = { username: "john_doe" };
 
 const renderWithRouter = () =>
   render(
-    <MemoryRouter initialEntries={[{ pathname: "/group/1", state: { user: mockUser } }]}>
+    <MemoryRouter initialEntries={[{ pathname: "/groups/1", state: { user: mockUser } }]}>
       <Routes>
         <Route
-          path="/group/:groupId"
+          path="/groups/:groupId"
           element={<Group location={{ state: { user: mockUser } }} />}
         />
       </Routes>
@@ -120,7 +120,7 @@ describe("Group Page", () => {
 
     await waitFor(() => {
       expect(axios.post).toHaveBeenCalledWith(
-        expect.stringContaining("/group/1/add_member/"),
+        expect.stringContaining("/groups/1/add_member/"),
         { username: "alex" },
         expect.any(Object)
       );

@@ -22,7 +22,7 @@ const Home = () => {
     const fetchUserGroups = useCallback(async () => {
         try {
             const token = localStorage.getItem("token");
-            const response = await axios.get(`${BASE_URL}api/groups/`, {
+            const response = await axios.get(`${BASE_URL}api/v1/groups/`, {
                 headers: {
                     "Authorization": `Bearer ${token}`,
                     "X-Username": user.username,
@@ -54,7 +54,7 @@ const Home = () => {
         try {
             const token = localStorage.getItem("token");
             await axios.post(
-                `${BASE_URL}api/groups/create/`,
+                `${BASE_URL}api/v1/groups/create/`,
                 { name: groupName, created_by: user.username },
                 {
                     headers: {

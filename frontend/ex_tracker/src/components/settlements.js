@@ -42,7 +42,7 @@ const Settlements = () => {
                     return;
                 }
 
-                const response = await axios.get(`${BASE_URL}settlements/${user.username}/`, {
+                const response = await axios.get(`${BASE_URL}api/v1/settlements/${user.username}/`, {
                     headers: {
                         "Authorization": `Bearer ${token}`,
                         "X-Username": user.username,
@@ -94,7 +94,7 @@ const Settlements = () => {
             }
 
             const response = await axios.patch(
-                `${BASE_URL}settlements/api/${settlementId}/`,
+                `${BASE_URL}api/v1/settlements/${settlementId}/`,
                 { payment_status: "Completed" },
                 {
                     headers: {

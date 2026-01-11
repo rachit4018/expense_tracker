@@ -154,21 +154,18 @@ def login_view(request):
 
     return Response(user_data, status=status.HTTP_200_OK)
 
-class AddExpenseView(BaseAPIView):
-    def get (self, request, group_id):
-        group = get_object_or_404(Group, group_id=group_id, members=request.user)
+
+
+class CategoryView(BaseAPIView):
+    def get (self, request, ):
         categories = Category.objects.all()
         print(categories)
         category_serializer = CategorySerializer(categories,many=True)
         print(category_serializer.data)
-        return Response(
-            {"group": {
-                "group_id": group.group_id,
-                "name": group.name
-            },
+        return Response({
             "categories": category_serializer.data,
-            "username": request.user.username},
-            status=status.HTTP_200_OK
+            "username": request.user.username
+        }, status=status.HTTP_200_OK
         )
 
 
@@ -355,10 +352,6 @@ class GroupDetailsAPIView(BaseAPIView):
             'available_members': available_members_data,
         }, status=status.HTTP_200_OK)
 
-
-@login_required
-def group_details_template(request, group_id):
-    return render(request, 'group_details.html', {'group_id': group_id})
 
 class AddMemberAPIView(BaseAPIView):
     """

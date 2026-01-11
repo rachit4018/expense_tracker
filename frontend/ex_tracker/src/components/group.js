@@ -33,7 +33,7 @@ const Group = () => {
                     ?.split("=")[1];
                 const token = localStorage.getItem("token");
 
-                const response = await axios.get(`${BASE_URL}groups/api/${groupId}/`, {
+                const response = await axios.get(`${BASE_URL}api/v1/groups/${groupId}/`, {
                     headers: {
                         "Authorization": `Bearer ${token}`,
                         "X-Username": username,
@@ -70,7 +70,7 @@ const Group = () => {
             const token = localStorage.getItem("token");
 
             const response = await axios.post(
-                `${BASE_URL}group/${groupId}/add_member/`,
+                `${BASE_URL}api/v1/groups/${groupId}/add_member/`,
                 { username: selectedMember },
                 {
                     headers: {

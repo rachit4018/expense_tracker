@@ -11,7 +11,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
+    env:
+      DJANGO_SETTINGS_MODULE: expense_tracker_project.settings.local
+      
     services:
       postgres:
         image: postgres:13

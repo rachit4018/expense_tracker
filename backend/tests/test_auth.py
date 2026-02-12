@@ -2,15 +2,17 @@ import pytest
 from django.utils.timezone import now, timedelta
 from rest_framework.test import APIClient
 from django.urls import reverse
-from django.contrib.auth import get_user_model
+
 from decouple import config
-User = get_user_model()
+
 @pytest.fixture
 def api_client():
     return APIClient()
 
 @pytest.fixture
 def create_user(db):
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
     def make_user(**kwargs):
         data = {
             "username": "testuser",

@@ -4,6 +4,7 @@ DEBUG = True
 SECRET_KEY = 'django-insecure-dev-only-key'
 ALLOWED_HOSTS = ['*']
 
+AUTH_USER_MODEL = 'expense_tracker.CustomUser'
 # Database (Local, can read from .env)
 DATABASES = {
     'default': {

@@ -24,3 +24,6 @@ dist/
 # Docker
 *.bak
 docker-compose.override.yml
+
+#backend
+/backend/db_backup/

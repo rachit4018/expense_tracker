@@ -1,0 +1,111 @@
+name: Dev Branch Tests
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_SETTINGS_MODULE: expense_tracker_project.settings.local
+      
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: testuser      # DB credentials (unchanged)
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # Step 3: Cache pip dependencies
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      # Step 4: Install backend dependencies
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          pip install -r requirements.txt
+
+      # Step 5: Wait for PostgreSQL to be ready
+      - name: Wait for PostgreSQL
+        run: |
+          timeout 20s bash -c 'until pg_isready -h localhost -p 5432; do sleep 1; done; echo "PostgreSQL is ready"'
+
+      # Step 6: Set up PostgreSQL environment variables
+      - name: Set DB environment variables
+        working-directory: ./backend
+        run: |
+          echo "DB_NAME=testdb" >> $GITHUB_ENV
+          echo "DB_USER=testuser" >> $GITHUB_ENV
+          echo "DB_PASSWORD=testpassword" >> $GITHUB_ENV
+          echo "DB_HOST=localhost" >> $GITHUB_ENV
+          echo "DB_PORT=5432" >> $GITHUB_ENV
+          echo "EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}" >> $GITHUB_ENV
+
+      # Step 7: Set test credentials from GitHub secrets
+      - name: Set test credentials
+        run: |
+          echo "password=${{ secrets.password }}" >> $GITHUB_ENV
+          echo "password1=${{ secrets.password1 }}" >> $GITHUB_ENV
+          echo "password2=${{ secrets.password2 }}" >> $GITHUB_ENV
+
+      # Step 8: Run backend tests
+      - name: Run backend tests
+        working-directory: ./backend
+        run: |
+          pytest
+
+      # Step 9: Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      # Step 10: Cache npm dependencies
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ./frontend/ex_tracker/node_modules
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
+      # Step 11: Install frontend dependencies
+      - name: Install frontend dependencies
+        working-directory: ./frontend/ex_tracker
+        run: |
+          npm install
+
+      # Step 12: Run frontend tests
+      - name: Run frontend tests
+        working-directory: ./frontend/ex_tracker
+        continue-on-error: true
+        env:
+          CI: false
+        run: |
+          npm test -- tests/ --watchAll=false

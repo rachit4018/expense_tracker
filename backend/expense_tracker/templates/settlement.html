@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Settlements</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        .message, .error {
+            font-size: 18px;
+            margin-top: 20px;
+        }
+        .message { color: green; }
+        .error { color: red; }
+        button {
+            padding: 5px 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <h1>Your Settlements</h1>
+    <div id="messages"></div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Group</th>
+                <th>Amount</th>
+                <th>Payment Status</th>
+                <th>Settlement Method</th>
+                <th>Due Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for settlement in settlements %}
+                <tr>
+                    <td>{{ settlement.group_name }}</td>
+                    <td>{{ settlement.amount }}</td>
+                    <td id="status-{{ settlement.id }}">{{ settlement.payment_status }}</td>
+                    <td>{{ settlement.settlement_method|default:"Not Specified" }}</td>
+                    <td>{{ settlement.due_date }}</td>
+                    <td>
+                        {% if settlement.payment_status == "Pending" %}
+                            <button class="mark-completed" data-id="{{ settlement.id }}">Mark as Completed</button>
+                        {% else %}
+                            Completed
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center;">No settlements found.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const csrfToken = "{{ csrf_token }}";
+            console.log(csrfToken);
+            document.querySelectorAll('.mark-completed').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const settlementId = e.target.getAttribute('data-id');
+                    updatePaymentStatus(settlementId, e.target);
+                });
+            });
+
+            function updatePaymentStatus(settlementId, button) {
+                fetch(`/expense_tracker/settlements/api/${settlementId}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify({ payment_status: 'Completed' }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('messages').innerHTML = `<p class="error">${data.error}</p>`;
+                    } else {
+                        document.getElementById(`status-${settlementId}`).innerText = "Completed";
+                        button.remove();
+                        document.getElementById('messages').innerHTML = `<p class="message">Payment status updated successfully!</p>`;
+                    }
+                })
+                .catch(error => {
+                    console.error("Error updating payment status:", error);
+                    document.getElementById('messages').innerHTML = `<p class="error">Failed to update payment status. Please try again.</p>`;
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>

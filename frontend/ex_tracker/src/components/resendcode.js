@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import BASE_URL from "../config";
+import axiosInstance from "../api/axiosInstance";
 import { useNavigate } from "react-router-dom";
 
 const ResendCode = () => {
@@ -14,13 +13,14 @@ const ResendCode = () => {
   useEffect(() => {
     const fetchCSRFToken = async () => {
       try {
-        const response = await axios.get(`${BASE_URL}csrf/`, { withCredentials: true });
-        const token = response.headers["x-csrftoken"] || response.data.csrfToken;
+        const response = await axiosInstance.get("/csrf/");
+        const token = response.headers["x-csrftoken"] || response.data?.csrfToken || "";
         setCsrfToken(token);
       } catch (err) {
         setError("Failed to get CSRF token.");
       }
     };
+
     fetchCSRFToken();
   }, []);
 
@@ -31,19 +31,17 @@ const ResendCode = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(
-        `${BASE_URL}resend-code/`,
+      const response = await axiosInstance.post(
+        "/resend-code/",
         { email },
         {
           headers: {
-            "Content-Type": "application/json",
             "X-CSRFToken": csrfToken,
           },
-          withCredentials: true,
         }
       );
 
-      if (response.data.message) {
+      if (response.data?.message) {
         setMessage(response.data.message);
         setTimeout(() => navigate("/verifycode"), 1200);
       }
@@ -60,7 +58,6 @@ const ResendCode = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-200 via-purple-200 to-pink-100 flex items-center justify-center">
-      {/* Content Wrapper */}
       <div className="w-full max-w-md bg-white shadow-xl rounded-xl p-8 backdrop-blur-sm">
         <h2 className="text-2xl font-semibold text-gray-800 mb-4 text-center">
           Resend Verification Code

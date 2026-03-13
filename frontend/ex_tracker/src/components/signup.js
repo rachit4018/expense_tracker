@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import BASE_URL from "../config";
+import axiosInstance from "../api/axiosInstance";
 
 // Reusable InputField
 const InputField = ({
@@ -68,10 +67,8 @@ const Signup = () => {
     const fetchCSRFToken = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${BASE_URL}csrf/`, {
-          withCredentials: true,
-        });
-        const token = response.headers["x-csrftoken"] || response.data.csrfToken;
+        const response = await axiosInstance.get("/csrf/");
+        const token = response.headers["x-csrftoken"] || response.data?.csrfToken || "";
         setCsrfToken(token);
       } catch (err) {
         setError("Failed to fetch CSRF token.");
@@ -84,7 +81,10 @@ const Signup = () => {
   }, []);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
     setError("");
     setMessages([]);
   };
@@ -93,47 +93,45 @@ const Signup = () => {
     e.preventDefault();
     setError("");
     setMessages([]);
-  
+
     if (formData.password1 !== formData.password2) {
       setError("Passwords do not match.");
       return;
     }
-  
+
     setLoading(true);
+
     try {
-      const response = await axios.post(
-        `${BASE_URL}signup/`,
+      const response = await axiosInstance.post(
+        "/signup/",
         formData,
         {
           headers: {
-            "Content-Type": "application/json",
             "X-CSRFToken": csrfToken,
           },
-          withCredentials: true,
         }
       );
-  
-      // Handle successful signup
+
       if (response.status === 201) {
-        setMessages([response.data.message || "Signup successful! Redirecting..."]);
+        setMessages([response.data?.message || "Signup successful! Redirecting..."]);
         setTimeout(() => navigate("/verifycode"), 1500);
       }
     } catch (err) {
       if (err.response) {
         const { error, details } = err.response.data;
-  
-        // Show general error message
+
         if (error) {
           setError(error);
         }
-  
-        // Show specific field-level or other messages
+
         if (details) {
           if (Array.isArray(details)) {
             setMessages(details);
           } else if (typeof details === "object") {
             const flattenedMessages = Object.entries(details).flatMap(([field, msgs]) =>
-              Array.isArray(msgs) ? msgs.map(msg => `${field}: ${msg}`) : `${field}: ${msgs}`
+              Array.isArray(msgs)
+                ? msgs.map((msg) => `${field}: ${msg}`)
+                : `${field}: ${msgs}`
             );
             setMessages(flattenedMessages);
           } else {
@@ -147,17 +145,14 @@ const Signup = () => {
       setLoading(false);
     }
   };
-  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-200 via-purple-200 to-pink-100 flex flex-col relative overflow-hidden">
-      {/* Pattern overlay */}
       <div
         className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/connected.png')] opacity-10 z-0"
         aria-hidden="true"
       ></div>
 
-      {/* Navbar */}
       <nav className="relative z-10 bg-white/90 shadow-md backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-indigo-700">💸 Expense Tracker</h1>
@@ -167,9 +162,7 @@ const Signup = () => {
         </div>
       </nav>
 
-      {/* Main Section */}
       <section className="relative z-10 flex-grow flex flex-col lg:flex-row items-center justify-between px-6 lg:px-20 py-16 gap-10">
-        {/* Info Column */}
         <div className="max-w-xl text-gray-800">
           <h2 className="text-4xl font-bold mb-4 leading-tight">
             Join the Expense Tracker Community
@@ -186,7 +179,6 @@ const Signup = () => {
           </ul>
         </div>
 
-        {/* Signup Form */}
         <div className="w-full max-w-md bg-white/90 shadow-xl rounded-xl p-8 backdrop-blur-sm">
           <h3 className="text-xl font-semibold text-gray-800 mb-6 text-center">
             Create Your Account
@@ -216,8 +208,28 @@ const Signup = () => {
           )}
 
           <form onSubmit={handleSubmit} aria-busy={loading}>
-            <InputField label="Username" type="text" name="username" value={formData.username} onChange={handleChange} required autoComplete="username" disabled={loading} />
-            <InputField label="Email" type="email" name="email" value={formData.email} onChange={handleChange} required autoComplete="email" disabled={loading} />
+            <InputField
+              label="Username"
+              type="text"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              required
+              autoComplete="username"
+              disabled={loading}
+            />
+
+            <InputField
+              label="Email"
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              autoComplete="email"
+              disabled={loading}
+            />
+
             <InputField
               label="Password"
               type={showPassword ? "text" : "password"}
@@ -238,6 +250,7 @@ const Signup = () => {
                 {showPassword ? "🙈" : "👁️"}
               </button>
             </InputField>
+
             <InputField
               label="Confirm Password"
               type={showPassword2 ? "text" : "password"}
@@ -258,9 +271,37 @@ const Signup = () => {
                 {showPassword2 ? "🙈" : "👁️"}
               </button>
             </InputField>
-            <InputField label="College" type="text" name="college" value={formData.college} onChange={handleChange} required autoComplete="organization" disabled={loading} />
-            <InputField label="Semester" type="text" name="semester" value={formData.semester} onChange={handleChange} required disabled={loading} />
-            <InputField label="Default Payment Method" type="text" name="default_payment_methods" value={formData.default_payment_methods} onChange={handleChange} required disabled={loading} />
+
+            <InputField
+              label="College"
+              type="text"
+              name="college"
+              value={formData.college}
+              onChange={handleChange}
+              required
+              autoComplete="organization"
+              disabled={loading}
+            />
+
+            <InputField
+              label="Semester"
+              type="text"
+              name="semester"
+              value={formData.semester}
+              onChange={handleChange}
+              required
+              disabled={loading}
+            />
+
+            <InputField
+              label="Default Payment Method"
+              type="text"
+              name="default_payment_methods"
+              value={formData.default_payment_methods}
+              onChange={handleChange}
+              required
+              disabled={loading}
+            />
 
             <button
               data-testid="signup-submit-button"
@@ -273,8 +314,20 @@ const Signup = () => {
               {loading ? (
                 <span className="flex items-center gap-2">
                   <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8z"
+                    />
                   </svg>
                   Signing up...
                 </span>
@@ -293,7 +346,6 @@ const Signup = () => {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="relative z-10 text-center text-sm text-gray-500 py-6 border-t">
         &copy; {new Date().getFullYear()} Expense Tracker. Built for peace of mind 💙
       </footer>

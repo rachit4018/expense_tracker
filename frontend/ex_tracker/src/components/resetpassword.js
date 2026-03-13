@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
-import BASE_URL from "../config";
+import axiosInstance from "../api/axiosInstance";
 
 const InputField = ({
   label,
@@ -46,20 +45,18 @@ const ResetPassword = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Fetch CSRF token
   useEffect(() => {
     const fetchToken = async () => {
       try {
-        const response = await axios.get(`${BASE_URL}csrf/`, {
-          withCredentials: true,
-        });
-        const token =
-          response.headers["x-csrftoken"] || response.data.csrfToken;
-        setCsrfToken(token);
+        const response = await axiosInstance.get("/csrf/");
+        const fetchedToken =
+          response.headers["x-csrftoken"] || response.data?.csrfToken || "";
+        setCsrfToken(fetchedToken);
       } catch {
         setError("Failed to load CSRF token.");
       }
     };
+
     fetchToken();
   }, []);
 
@@ -70,19 +67,17 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(
-        `${BASE_URL}reset_password/`,
+      const response = await axiosInstance.post(
+        "/reset_password/",
         { email },
         {
           headers: {
-            "Content-Type": "application/json",
             "X-CSRFToken": csrfToken,
           },
-          withCredentials: true,
         }
       );
 
-      setMessage(response.data.message);
+      setMessage(response.data?.message || "Reset link sent successfully.");
     } catch (err) {
       setError(err.response?.data?.error || "Something went wrong");
     } finally {
@@ -97,19 +92,20 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(
-        `${BASE_URL}reset_password_confirm/${token}/`,
-        { new_password: newPassword, confirm_password: confirmPassword },
+      const response = await axiosInstance.post(
+        `/reset_password_confirm/${token}/`,
+        {
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        },
         {
           headers: {
-            "Content-Type": "application/json",
             "X-CSRFToken": csrfToken,
           },
-          withCredentials: true,
         }
       );
 
-      setMessage(response.data.message);
+      setMessage(response.data?.message || "Password reset successful.");
 
       setTimeout(() => {
         navigate("/login");
@@ -123,13 +119,11 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-200 via-purple-200 to-pink-100 flex flex-col">
-      {/* Background Pattern */}
       <div
         className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/connected.png')] opacity-10 z-0"
         aria-hidden="true"
       ></div>
 
-      {/* Navbar */}
       <nav className="relative z-10 bg-white/90 shadow-md backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <a href="/" className="text-lg font-semibold text-gray-800">
@@ -140,9 +134,7 @@ const ResetPassword = () => {
         </div>
       </nav>
 
-      {/* Main Layout */}
       <section className="relative z-10 flex-grow flex flex-col lg:flex-row items-center justify-between px-6 lg:px-20 py-16 gap-10">
-        {/* Left Info Block */}
         <div className="max-w-xl text-gray-800">
           <h2 className="text-4xl font-bold mb-4 leading-tight">
             {token ? "Set a New Password" : "Forgot Your Password?"}
@@ -165,7 +157,6 @@ const ResetPassword = () => {
           </ul>
         </div>
 
-        {/* Form Card */}
         <div className="w-full max-w-md bg-white/90 shadow-xl rounded-xl p-8 backdrop-blur-sm">
           <h3 className="text-xl font-semibold text-gray-800 mb-6 text-center">
             {token ? "Create New Password" : "Reset Password"}
@@ -241,7 +232,6 @@ const ResetPassword = () => {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="relative z-10 text-center text-sm text-gray-500 py-6 border-t">
         &copy; {new Date().getFullYear()} Expense Tracker. Built for peace of mind 💙
       </footer>

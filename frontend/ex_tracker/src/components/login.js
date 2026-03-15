@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import BASE_URL from "../config";
+import axiosInstance from "../api/axiosInstance";
 import { useNavigate } from "react-router-dom";
 
 const InputField = ({
@@ -59,10 +58,8 @@ const Login = () => {
     const fetchCSRFToken = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${BASE_URL}csrf/`, {
-          withCredentials: true,
-        });
-        const token = response.headers["x-csrftoken"] || response.data.csrfToken;
+        const response = await axiosInstance.get("/csrf/");
+        const token = response.headers["x-csrftoken"] || response.data?.csrfToken || "";
         setCsrfToken(token);
       } catch (error) {
         setError("Failed to fetch CSRF token.");
@@ -70,58 +67,78 @@ const Login = () => {
         setLoading(false);
       }
     };
+
     fetchCSRFToken();
   }, []);
 
-   const validate = () => {
+  const validate = () => {
     const errs = {};
     if (!formData.email.trim()) {
       errs.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       errs.email = "Email is invalid";
     }
-    if (!formData.password) errs.password = "Password is required";
+
+    if (!formData.password) {
+      errs.password = "Password is required";
+    }
+
     return errs;
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setErrors({ ...errors, [e.target.name]: "" });
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+    setErrors((prev) => ({
+      ...prev,
+      [e.target.name]: "",
+    }));
     setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
     const validationErrors = validate();
     if (Object.keys(validationErrors).length) {
       setErrors(validationErrors);
       return;
     }
+
     setLoading(true);
+
     try {
-      const response = await axios.post(
-        `${BASE_URL}login/`,
+      const response = await axiosInstance.post(
+        "/login/",
         formData,
         {
           headers: {
-            "Content-Type": "application/json",
             "X-CSRFToken": csrfToken,
           },
-          withCredentials: true,
         }
       );
+
       if (response.status === 200) {
-        localStorage.setItem("token", response.data.token);
+        const returnedToken = response.data?.token || response.data?.access || "";
+
+        if (returnedToken) {
+          localStorage.setItem("token", returnedToken);
+          localStorage.setItem("access_token", returnedToken);
+        }
+
         localStorage.setItem("user", JSON.stringify(response.data));
         setSuccess(true);
+
         setTimeout(() => {
           navigate("/home", { state: { user: response.data } });
         }, 1000);
       }
     } catch (error) {
       if (error.response) {
-        setError(error.response.data.error || "Invalid credentials");
+        setError(error.response.data?.error || "Invalid credentials");
       } else if (error.request) {
         setError("No response from the server. Please try again.");
       } else {
@@ -134,24 +151,20 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-200 via-purple-200 to-pink-100 flex flex-col">
-      {/* Optional background pattern overlay */}
       <div
         className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/connected.png')] opacity-10 z-0"
         aria-hidden="true"
       ></div>
 
-      {/* Navbar */}
       <nav className="relative z-10 bg-white/90 shadow-md backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <a href="/" className="text-lg font-semibold text-gray-800">
-          <h1 className="text-2xl font-bold text-indigo-700">💸 Expense Tracker</h1>
+            <h1 className="text-2xl font-bold text-indigo-700">💸 Expense Tracker</h1>
           </a>
         </div>
       </nav>
 
-      {/* Main Section */}
       <section className="relative z-10 flex-grow flex flex-col lg:flex-row items-center justify-between px-6 lg:px-20 py-16 gap-10">
-        {/* Info Column */}
         <div className="max-w-xl text-gray-800">
           <h2 className="text-4xl font-bold mb-4 leading-tight">
             Smarter Expense Tracking
@@ -168,7 +181,6 @@ const Login = () => {
           </ul>
         </div>
 
-        {/* Login Form Card */}
         <div className="w-full max-w-md bg-white/90 shadow-xl rounded-xl p-8 backdrop-blur-sm">
           <h3 className="text-xl font-semibold text-gray-800 mb-6 text-center">
             Login to Your Account
@@ -221,8 +233,6 @@ const Login = () => {
               </button>
             </InputField>
 
-            {/* Reset Password Link  */}
-
             <p className="text-right text-sm text-indigo-600 hover:underline mb-3">
               <a href="/reset_password">Forgot Password?</a>
             </p>
@@ -269,7 +279,6 @@ const Login = () => {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="relative z-10 text-center text-sm text-gray-500 py-6 border-t">
         &copy; {new Date().getFullYear()} Expense Tracker. Built for peace of mind 💙
       </footer>

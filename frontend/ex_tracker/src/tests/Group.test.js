@@ -3,8 +3,16 @@ import { render, screen, waitFor, fireEvent, within } from "@testing-library/rea
 import Group from "../components/group"; // Adjust path if needed
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import axios from "axios";
+import axiosInstance from "../api/axiosInstance";
 
-jest.mock("axios");
+jest.mock("../api/axiosInstance", () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    post: jest.fn(),
+  },
+}));
+
 
 // Mock localStorage and CSRF token
 beforeEach(() => {
@@ -51,14 +59,14 @@ const renderWithRouter = () =>
 
 describe("Group Page", () => {
   it("renders loading state initially", async () => {
-    axios.get.mockResolvedValueOnce({ data: mockGroupData });
+    axiosInstance.get.mockResolvedValueOnce({ data: mockGroupData });
 
     renderWithRouter();
     expect(screen.getByText(/Loading group details/i)).toBeInTheDocument();
   });
 
   it("displays group details after fetch", async () => {
-    axios.get.mockResolvedValueOnce({ data: mockGroupData });
+    axiosInstance.get.mockResolvedValueOnce({ data: mockGroupData });
 
     renderWithRouter();
 
@@ -78,7 +86,7 @@ describe("Group Page", () => {
   });
 
   it("shows error message if fetch fails", async () => {
-    axios.get.mockRejectedValueOnce(new Error("Fetch failed"));
+    axiosInstance.get.mockRejectedValueOnce(new Error("Fetch failed"));
 
     renderWithRouter();
 
@@ -88,7 +96,7 @@ describe("Group Page", () => {
   });
 
   it("alerts when trying to add member without selection", async () => {
-    axios.get.mockResolvedValueOnce({ data: mockGroupData });
+    axiosInstance.get.mockResolvedValueOnce({ data: mockGroupData });
 
     renderWithRouter();
 
@@ -103,8 +111,8 @@ describe("Group Page", () => {
   });
 
   it("adds a member when selected", async () => {
-    axios.get.mockResolvedValueOnce({ data: mockGroupData });
-    axios.post.mockResolvedValueOnce({ data: { success: true } });
+    axiosInstance.get.mockResolvedValueOnce({ data: mockGroupData });
+    axiosInstance.post.mockResolvedValueOnce({ data: { success: true } });
 
     renderWithRouter();
 
@@ -119,7 +127,7 @@ describe("Group Page", () => {
     fireEvent.click(addButton);
 
     await waitFor(() => {
-      expect(axios.post).toHaveBeenCalledWith(
+      expect(axiosInstance.post).toHaveBeenCalledWith(
         expect.stringContaining("/groups/1/add_member/"),
         { username: "alex" },
         expect.any(Object)

@@ -3,9 +3,16 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ResendCode from "../components/resendcode"; // Adjust the import path if necessary
 import axios from "axios";
 import { BrowserRouter } from "react-router-dom";
+import axiosInstance from "../api/axiosInstance";
 
 // Mock axios
-jest.mock("axios");
+jest.mock("../api/axiosInstance", () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    post: jest.fn(),
+  },
+}));
 
 const renderWithRouter = (ui) => {
   return render(<BrowserRouter>{ui}</BrowserRouter>);
@@ -17,7 +24,7 @@ describe("ResendCode component", () => {
   });
 
   test("renders input and button", async () => {
-    axios.get.mockResolvedValue({
+    axiosInstance.get.mockResolvedValue({
       headers: { "x-csrftoken": "mocked_csrf_token" },
     });
 
@@ -28,11 +35,11 @@ describe("ResendCode component", () => {
   });
 
   test("shows success message after resend", async () => {
-    axios.get.mockResolvedValue({
+    axiosInstance.get.mockResolvedValue({
       headers: { "x-csrftoken": "mocked_csrf_token" },
     });
 
-    axios.post.mockResolvedValue({
+    axiosInstance.post.mockResolvedValue({
       data: { message: "Verification code resent successfully." },
     });
 
@@ -48,11 +55,11 @@ describe("ResendCode component", () => {
   });
 
   test("shows error message on failed resend", async () => {
-    axios.get.mockResolvedValue({
+    axiosInstance.get.mockResolvedValue({
       headers: { "x-csrftoken": "mocked_csrf_token" },
     });
 
-    axios.post.mockRejectedValue({
+    axiosInstance.post.mockRejectedValue({
       response: {
         data: { error: "User not found." },
       },

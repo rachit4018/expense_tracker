@@ -2,8 +2,15 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import axios from 'axios';
 import Signup from '../components/signup';
+import axiosInstance from '../api/axiosInstance';
 
-jest.mock('axios');
+jest.mock("../api/axiosInstance", () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    post: jest.fn(),
+  },
+}));
 
 const mockedNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
@@ -18,7 +25,7 @@ const renderWithRouter = (component) => {
 describe('Signup Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    axios.get.mockResolvedValue({
+    axiosInstance.get.mockResolvedValue({
       headers: { 'x-csrftoken': 'mock-csrf-token' },
       data: { csrfToken: 'mock-csrf-token' },
     });
@@ -90,7 +97,7 @@ test("shows error if passwords do not match", async () => {
 
 
   test('shows signup success message and navigates', async () => {
-    axios.post.mockResolvedValue({
+    axiosInstance.post.mockResolvedValue({
       status: 201,
       data: { messages: ['Sign up successful! Redirecting to verification page...'] },
     });
@@ -113,7 +120,7 @@ test("shows error if passwords do not match", async () => {
   });
 
   test('shows API error messages', async () => {
-    axios.post.mockRejectedValue({
+    axiosInstance.post.mockRejectedValue({
       response: {
         data: {
           error: 'Signup failed. Username already exists.',

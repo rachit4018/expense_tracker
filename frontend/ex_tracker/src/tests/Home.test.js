@@ -3,9 +3,17 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import Home from "../components/home"; // Adjust the import path if necessary
 import axios from "axios";
 import { BrowserRouter, MemoryRouter } from "react-router-dom";
+import axiosInstance from "../api/axiosInstance";
 
-// Mock Axios
-jest.mock("axios");
+// Mock AxiosInstance
+
+jest.mock("../api/axiosInstance", () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    post: jest.fn(),
+  },
+}));
 
 const mockNavigate = jest.fn();
 jest.mock("react-router-dom", () => ({
@@ -35,7 +43,7 @@ describe("Home Component", () => {
   };
 
   beforeEach(() => {
-    axios.get.mockImplementation((url) => {
+    axiosInstance.get.mockImplementation((url) => {
       if (url.includes("groups")) {
         return Promise.resolve(mockGroups);
       }
@@ -69,7 +77,7 @@ describe("Home Component", () => {
   });
 
   test("handles create group submission", async () => {
-    axios.post.mockResolvedValue({ status: 201 });
+    axiosInstance.post.mockResolvedValue({ status: 201 });
 
     render(
       <MemoryRouter>
@@ -84,7 +92,7 @@ describe("Home Component", () => {
     fireEvent.click(button);
 
     await waitFor(() => {
-      expect(axios.post).toHaveBeenCalledWith(
+      expect(axiosInstance.post).toHaveBeenCalledWith(
         expect.stringContaining("create"),
         { name: "New Test Group", created_by: "testuser" },
         expect.any(Object)

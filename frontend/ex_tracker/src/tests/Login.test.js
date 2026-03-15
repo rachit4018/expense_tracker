@@ -10,7 +10,14 @@ import axios from "axios";
 import { BrowserRouter } from "react-router-dom";
 
 // Mock axios
-jest.mock("axios");
+jest.mock("../api/axiosInstance", () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    post: jest.fn(),
+  },
+}));
+  
 
 const renderWithRouter = (ui) => {
   return render(

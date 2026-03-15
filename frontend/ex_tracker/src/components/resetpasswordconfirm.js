@@ -32,7 +32,7 @@ const InputField = ({
   </div>
 );
 
-const ResendPasswordConfirm = () => {
+const ResetPasswordConfirm = () => {
   const { token } = useParams();
   const navigate = useNavigate();
 
@@ -184,4 +184,4 @@ const ResendPasswordConfirm = () => {
   );
 };
 
-export default ResendPasswordConfirm;
+export default ResetPasswordConfirm;

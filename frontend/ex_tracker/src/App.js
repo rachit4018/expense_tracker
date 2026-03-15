@@ -11,7 +11,7 @@ import Settlements from './components/settlements';
 import Expense from './components/expense';
 import Resend from './components/resend';
 import ResetPassword from './components/resetpassword';
-import ResendPasswordConfirm from './components/resendpasswordconfirm';
+import ResendPasswordConfirm from './components/resetpasswordconfirm';
 
 function App() {
   return (

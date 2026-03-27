@@ -26,6 +26,8 @@ services:
     build:
       context: ./frontend/ex_tracker
       dockerfile: Dockerfile.prod
+      args:
+        REACT_APP_API_URL: http://backend:8000
     container_name: react_frontend_prod
     restart: unless-stopped
     expose:

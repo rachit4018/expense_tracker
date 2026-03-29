@@ -155,7 +155,8 @@ const Signup = () => {
 
       <nav className="relative z-10 bg-white/90 shadow-md backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-indigo-700">💸 Expense Tracker</h1>
+          <a href="/" className="text-lg font-semibold text-gray-800">Expense Tracker
+          <h1 className="text-2xl font-bold text-indigo-700">💸 Expense Tracker</h1></a>
           <a href="/" className="text-indigo-700 hover:underline font-medium">
             Log In
           </a>

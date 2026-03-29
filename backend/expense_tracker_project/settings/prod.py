@@ -37,6 +37,18 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
+CORS_ALLOW_METHODS = [
+    origin.strip()
+    for origin in config("CORS_ALLOW_METHODS", default="").split(",")
+    if origin.strip()
+]
+
+CORS_ALLOW_HEADERS = [
+    origin.strip()
+    for origin in config("CORS_ALLOW_HEADERS", default="").split(",")
+    if origin.strip()
+]
+
 CORS_ALLOW_CREDENTIALS = True
 
 USE_X_FORWARDED_HOST = True

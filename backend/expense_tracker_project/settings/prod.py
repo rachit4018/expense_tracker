@@ -37,17 +37,8 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
-CORS_ALLOW_METHODS = [
-    origin.strip()
-    for origin in config("CORS_ALLOW_METHODS", default="").split(",")
-    if origin.strip()
-]
-
-CORS_ALLOW_HEADERS = [
-    origin.strip()
-    for origin in config("CORS_ALLOW_HEADERS", default="").split(",")
-    if origin.strip()
-]
+# CORS_ALLOW_METHODS and CORS_ALLOW_HEADERS are inherited from base.py
+# Do not override them here — overriding with env vars caused empty lists and 405 errors
 
 CORS_ALLOW_CREDENTIALS = True
 

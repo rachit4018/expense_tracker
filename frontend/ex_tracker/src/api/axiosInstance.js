@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE  = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL;
+const API_BASE  = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || "http://localhost:8000";
 
 const axiosInstance = axios.create({
   baseURL: `${API_BASE}/expense_tracker`,

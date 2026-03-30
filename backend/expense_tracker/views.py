@@ -737,7 +737,7 @@ class ResetPasswordView(APIView):
         # Generate a unique token
         token = get_random_string(50)
         expiry = timezone.now() + timedelta(minutes=10)
-        reset_link = f"http://localhost:3000/reset-password/{token}/"  # Hardcoded link
+        reset_link = f"http://3.96.166.110/reset-password/{token}/"  # Hardcoded link
         try:
             PasswordResetToken.objects.create(user=user, token=token, expiry=expiry)
         except Exception as e:

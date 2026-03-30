@@ -91,7 +91,7 @@ def signup_view(request):
         user = serializer.save()  # Save user to DB
 
         # Send verification email
-        send_verification_email(user, serializer.data['verification_code'])
+        send_verification_email(user, user.verification_code)
 
         return Response(
             {'message': 'Sign up successful! Please check your email for the verification code.'},

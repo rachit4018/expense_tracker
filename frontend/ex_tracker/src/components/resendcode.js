@@ -32,7 +32,7 @@ const ResendCode = () => {
 
     try {
       const response = await axiosInstance.post(
-        "/resend-code/",
+        "/resend_code/",
         { email },
         {
           headers: {

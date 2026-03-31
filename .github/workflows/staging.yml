@@ -131,12 +131,12 @@ jobs:
       - name: Copy .env file to EC2
         run: |
           echo "${{ secrets.ENV_STAGING }}" > .env.prod
-          scp -i ~/.ssh/expense-tracker-sg.pem .env.prod \
+          scp -i ~/.ssh/EC2_STAGING_KEY.pem .env.prod \
             ${{ secrets.EC2_STAGING_USER }}@${{ secrets.EC2_STAGING_HOST }}:/var/www/expense_tracker/.env.prod
 
       - name: Pull latest code and deploy on EC2
         run: |
-          ssh -i ~/.ssh/expense-tracker-sg.pem \
+          ssh -i ~/.ssh/EC2_STAGING_KEY.pem \
             ${{ secrets.EC2_STAGING_USER }}@${{ secrets.EC2_STAGING_HOST }} << 'EOF'
             set -e
 

@@ -3,7 +3,7 @@ name: Staging — Deploy to EC2
 on:
   push:
     branches:
-      - staging
+      - dev
 
 jobs:
   # ─── Job 1: Run tests first (same as develop.yml) ───

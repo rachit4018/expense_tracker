@@ -156,7 +156,6 @@ jobs:
             sudo docker compose -f docker-compose.prod.yml build && \
             sudo docker compose -f docker-compose.prod.yml up -d && \
             sudo docker exec django_backend_prod python manage.py migrate && \
-            sudo docker exec django_backend_prod python manage.py collectstatic --noinput && \
             sudo docker compose -f docker-compose.prod.yml ps && \
             echo 'Deploy complete!'"
 

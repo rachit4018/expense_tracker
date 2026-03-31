@@ -124,53 +124,34 @@ jobs:
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_STAGING_KEY }}" > ~/.ssh/staging.pem
+          printf '%s\n' "${{ secrets.EC2_STAGING_KEY }}" > ~/.ssh/staging.pem
           chmod 600 ~/.ssh/staging.pem
           ssh-keyscan -H ${{ secrets.EC2_STAGING_HOST }} >> ~/.ssh/known_hosts
 
       - name: Copy .env file to EC2
         run: |
           echo "${{ secrets.ENV_STAGING }}" > .env.prod
-          scp -i ~/.ssh/EC2_STAGING_KEY.pem .env.prod \
+          scp -i ~/.ssh/staging.pem .env.prod \
             ${{ secrets.EC2_STAGING_USER }}@${{ secrets.EC2_STAGING_HOST }}:/var/www/expense_tracker/.env.prod
 
-      - name: Pull latest code and deploy on EC2
+      - name: Deploy on EC2
         run: |
-          ssh -i ~/.ssh/EC2_STAGING_KEY.pem \
+          ssh -i ~/.ssh/staging.pem \
             ${{ secrets.EC2_STAGING_USER }}@${{ secrets.EC2_STAGING_HOST }} << 'EOF'
             set -e
-
-            echo ">>> Navigating to project..."
             cd /var/www/expense_tracker
-
-            echo ">>> Pulling latest code from dev..."
             git fetch origin
             git checkout dev
             git pull origin dev
-
-            echo ">>> Cleaning docker cache..."
-            docker image prune -f
-            docker builder prune -f
-
-            echo ">>> Stopping existing containers..."
-            docker compose -f docker-compose.prod.yml down
-
-            echo ">>> Building containers..."
-            docker compose -f docker-compose.prod.yml build
-
-            echo ">>> Starting containers..."
-            docker compose -f docker-compose.prod.yml up -d
-
-            echo ">>> Running migrations..."
-            docker exec django_backend_prod python manage.py migrate
-
-            echo ">>> Collecting static files..."
-            docker exec django_backend_prod python manage.py collectstatic --noinput
-
-            echo ">>> Checking running containers..."
-            docker compose -f docker-compose.prod.yml ps
-
-            echo ">>> Staging deploy complete!"
+            sudo docker image prune -f
+            sudo docker builder prune -f
+            sudo docker compose -f docker-compose.prod.yml down
+            sudo docker compose -f docker-compose.prod.yml build
+            sudo docker compose -f docker-compose.prod.yml up -d
+            sudo docker exec django_backend_prod python manage.py migrate
+            sudo docker exec django_backend_prod python manage.py collectstatic --noinput
+            sudo docker compose -f docker-compose.prod.yml ps
+            echo "Deploy complete!"
             EOF
 
       - name: Notify success

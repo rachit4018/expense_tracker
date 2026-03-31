@@ -139,24 +139,26 @@ jobs:
             ${{ secrets.EC2_STAGING_USER }}@${{ secrets.EC2_STAGING_HOST }}:/var/www/expense_tracker/.env.prod
 
       - name: Deploy on EC2
+        env:
+          SSH_HOST: ${{ secrets.EC2_STAGING_HOST }}
+          SSH_USER: ${{ secrets.EC2_STAGING_USER }}
         run: |
           ssh -i ~/.ssh/expense-tracker-sg.pem \
-            ${{ secrets.EC2_STAGING_USER }}@${{ secrets.EC2_STAGING_HOST }} << 'EOF'
-            set -e
-            cd /var/www/expense_tracker
-            git fetch origin
-            git checkout dev
-            git pull origin dev
-            sudo docker image prune -f
-            sudo docker builder prune -f
-            sudo docker compose -f docker-compose.prod.yml down
-            sudo docker compose -f docker-compose.prod.yml build
-            sudo docker compose -f docker-compose.prod.yml up -d
-            sudo docker exec django_backend_prod python manage.py migrate
-            sudo docker exec django_backend_prod python manage.py collectstatic --noinput
-            sudo docker compose -f docker-compose.prod.yml ps
-            echo ">>> Deploy complete!"
-            EOF
+            -o StrictHostKeyChecking=no \
+            ${SSH_USER}@${SSH_HOST} \
+            "cd /var/www/expense_tracker/expense_tracker && \
+            git fetch origin && \
+            git checkout dev && \
+            git pull origin dev && \
+            sudo docker image prune -f && \
+            sudo docker builder prune -f && \
+            sudo docker compose -f docker-compose.prod.yml down && \
+            sudo docker compose -f docker-compose.prod.yml build && \
+            sudo docker compose -f docker-compose.prod.yml up -d && \
+            sudo docker exec django_backend_prod python manage.py migrate && \
+            sudo docker exec django_backend_prod python manage.py collectstatic --noinput && \
+            sudo docker compose -f docker-compose.prod.yml ps && \
+            echo 'Deploy complete!'"
 
       - name: Notify success
         if: success()

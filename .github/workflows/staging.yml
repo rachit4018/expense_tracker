@@ -1,0 +1,168 @@
+name: Staging — Deploy to EC2
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  # ─── Job 1: Run tests first (same as develop.yml) ───
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+
+    env:
+      DJANGO_SETTINGS_MODULE: expense_tracker_project.settings.local
+      SECRET_KEY: test-secret-key-for-ci
+      DB_NAME: testdb
+      DB_USER: testuser
+      DB_PASSWORD: testpassword
+      DB_HOST: localhost
+      DB_PORT: 5432
+      EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+      EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
+      password: ${{ secrets.password }}
+      password1: ${{ secrets.password1 }}
+      password2: ${{ secrets.password2 }}
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: pip install -r requirements.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          timeout 30s bash -c 'until pg_isready -h localhost -p 5432; do sleep 1; done'
+          echo "PostgreSQL is ready"
+
+      - name: Run migrations
+        working-directory: ./backend
+        run: python manage.py migrate
+
+      - name: Run backend tests
+        working-directory: ./backend
+        run: pytest --tb=short -v
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    needs: backend-tests
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ./frontend/ex_tracker/node_modules
+          key: npm-${{ runner.os }}-${{ hashFiles('frontend/ex_tracker/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend/ex_tracker
+        run: npm install
+
+      - name: Build frontend
+        working-directory: ./frontend/ex_tracker
+        env:
+          CI: false
+          REACT_APP_API_URL: http://${{ secrets.EC2_STAGING_HOST }}
+        run: npm run build
+
+      - name: Run frontend tests
+        working-directory: ./frontend/ex_tracker
+        continue-on-error: true
+        env:
+          CI: false
+        run: npm test -- --watchAll=false --passWithNoTests
+
+  # ─── Job 2: Deploy to EC2 after tests pass ───
+  deploy:
+    name: Deploy to Staging EC2
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]   # only runs if both pass
+
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_STAGING_KEY_B64 }}" | base64 -d > ~/.ssh/expense-tracker-sg.pem
+          chmod 600 ~/.ssh/expense-tracker-sg.pem
+          ssh-keyscan -H ${{ secrets.EC2_STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Verify SSH key
+        run: |
+          ssh-keygen -l -f ~/.ssh/expense-tracker-sg.pem
+
+      - name: Copy .env file to EC2
+        run: |
+          echo "${{ secrets.ENV_STAGING }}" > .env.prod
+          scp -i ~/.ssh/expense-tracker-sg.pem .env.prod \
+            ${{ secrets.EC2_STAGING_USER }}@${{ secrets.EC2_STAGING_HOST }}:/var/www/expense_tracker/.env.prod
+
+      - name: Deploy on EC2
+        env:
+          SSH_HOST: ${{ secrets.EC2_STAGING_HOST }}
+          SSH_USER: ${{ secrets.EC2_STAGING_USER }}
+        run: |
+          ssh -i ~/.ssh/expense-tracker-sg.pem \
+            -o StrictHostKeyChecking=no \
+            ${SSH_USER}@${SSH_HOST} \
+            "cd /var/www/expense_tracker/expense_tracker && \
+            git fetch origin && \
+            git checkout dev && \
+            git pull origin dev && \
+            sudo docker image prune -f && \
+            sudo docker builder prune -f && \
+            sudo docker compose -f docker-compose.prod.yml down && \
+            sudo docker compose -f docker-compose.prod.yml build && \
+            sudo docker compose -f docker-compose.prod.yml up -d && \
+            sudo docker exec django_backend_prod python manage.py migrate && \
+            sudo docker compose -f docker-compose.prod.yml ps && \
+            echo 'Deploy complete!'"
+
+      - name: Notify success
+        if: success()
+        run: echo "✅ Staging deployed successfully at http://${{ secrets.EC2_STAGING_HOST }}"
+
+      - name: Notify failure
+        if: failure()
+        run: echo "❌ Staging deploy failed!"

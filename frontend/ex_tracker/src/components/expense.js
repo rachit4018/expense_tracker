@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
-import BASE_URL from "../config";
+import axiosInstance from "../api/axiosInstance";
 
 const Expense = () => {
-  const groupId = parseInt(useParams().groupId, 10);
+  const { groupId } = useParams();
+  const parsedGroupId = parseInt(groupId, 10);
+
   const navigate = useNavigate();
   const location = useLocation();
   const user = location.state?.user || {};
-  const username = user.username;
+  const username = user.username || "";
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -21,11 +22,13 @@ const Expense = () => {
     date: new Date().toISOString().split("T")[0],
     receipt_image: null,
     created_by: username,
-    group_id: groupId,
+    group_id: parsedGroupId,
   });
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token =
+      localStorage.getItem("access_token") || localStorage.getItem("token");
+
     if (!token) {
       setError("Unauthorized access.");
       setLoading(false);
@@ -34,16 +37,11 @@ const Expense = () => {
 
     const fetchCategories = async () => {
       try {
-        const response = await axios.get(`${BASE_URL}api/v1/categories/`, {
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          withCredentials: true,
-        });
+        const response = await axiosInstance.get("/api/v1/categories/");
 
         if (Array.isArray(response.data?.categories)) {
           setCategories(response.data.categories);
+          setError("");
         } else {
           setError("No categories found.");
         }
@@ -56,13 +54,14 @@ const Expense = () => {
     };
 
     fetchCategories();
-  }, [groupId]);
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
+
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "receipt_image" ? files[0] : value,
+      [name]: name === "receipt_image" ? files?.[0] || null : value,
     }));
   };
 
@@ -72,71 +71,90 @@ const Expense = () => {
     setMessage("");
 
     const data = new FormData();
+
     Object.entries(formData).forEach(([key, value]) => {
-      if (key === "receipt_image" && !value) return; // Skip empty file
-      data.append(key === "groupid" ? "group_id" : key, value);
+      if (key === "receipt_image" && !value) return;
+      data.append(key, value);
     });
 
-    const token = localStorage.getItem("token");
-
     try {
-      const response = await axios.post(
-        `${BASE_URL}api/v1/expenses/${groupId}/add/`,
+      const response = await axiosInstance.post(
+        `/api/v1/expenses/${parsedGroupId}/add/`,
         data,
         {
           headers: {
-            "Authorization": `Bearer ${token}`,
             "Content-Type": "multipart/form-data",
           },
-          withCredentials: true,
         }
       );
 
       if (response.status === 201) {
         setMessage("Expense added successfully!");
         setTimeout(() => {
-          navigate(`/groups/${groupId}`, { state: { user } });
+          navigate(`/groups/${parsedGroupId}`, { state: { user } });
         }, 1000);
       } else {
-        setError(response.data.error || "Failed to add expense.");
+        setError(response.data?.error || "Failed to add expense.");
       }
     } catch (err) {
       console.error("Error adding expense:", err);
-      setError(err.response?.data?.error || "Failed to add expense. Please try again.");
+      setError(
+        err.response?.data?.error || "Failed to add expense. Please try again."
+      );
     }
   };
 
   const handleLogout = () => navigate("/");
-  const handleSettlements = () => navigate(`/settlements/${user.username}`, { state: { user } });
+  const handleSettlements = () =>
+    navigate(`/settlements/${user.username}`, { state: { user } });
 
   if (loading) return <p className="text-center mt-10">Loading...</p>;
 
   return (
     <div className="min-h-screen bg-pink-100">
-      {/* Navbar */}
       <nav className="bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <button onClick={() => navigate("/home", { state: { user } })} className="flex items-center">
-            <h1 className="text-2xl font-bold text-indigo-700">💸 Expense Tracker</h1>
+          <button
+            onClick={() => navigate("/home", { state: { user } })}
+            className="flex items-center"
+          >
+            <h1 className="text-2xl font-bold text-indigo-700">
+              💸 Expense Tracker
+            </h1>
           </button>
           <div className="flex space-x-4">
-            <button onClick={handleSettlements} className="text-indigo-700 hover:underline font-medium">Settlements</button>
-            <button onClick={handleLogout} className="text-indigo-700 hover:underline font-medium">Logout</button>
+            <button
+              onClick={handleSettlements}
+              className="text-indigo-700 hover:underline font-medium"
+            >
+              Settlements
+            </button>
+            <button
+              onClick={handleLogout}
+              className="text-indigo-700 hover:underline font-medium"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </nav>
 
-      {/* Form Section */}
       <div className="max-w-3xl mx-auto mt-10 bg-white shadow-lg rounded-lg p-8">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">Add Expense to Group</h2>
+        <h2 className="text-2xl font-bold mb-6 text-gray-800">
+          Add Expense to Group
+        </h2>
 
         {error && <p className="text-red-600 mb-4">{error}</p>}
         {message && <p className="text-green-600 mb-4">{message}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Amount */}
           <div>
-            <label htmlFor='amount' className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+            <label
+              htmlFor="amount"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Amount
+            </label>
             <input
               id="amount"
               type="number"
@@ -150,9 +168,13 @@ const Expense = () => {
             />
           </div>
 
-          {/* Category */}
           <div>
-            <label htmlFor='category' className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <label
+              htmlFor="category"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Category
+            </label>
             <select
               id="category"
               name="category"
@@ -161,16 +183,25 @@ const Expense = () => {
               className="w-full border px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
               required
             >
-              <option value="" disabled>Select a category</option>
+              <option value="" disabled>
+                Select a category
+              </option>
               {categories.map((category) => (
-                <option key={category.id} value={category.id}>{category.name}</option>
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
               ))}
             </select>
           </div>
 
-          {/* Split Type */}
           <div>
-            <label htmlFor='split_type' data-testid="split_type" className="block text-sm font-medium text-gray-700 mb-1">Split Type</label>
+            <label
+              htmlFor="split_type"
+              data-testid="split_type"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Split Type
+            </label>
             <select
               id="split_type"
               name="split_type"
@@ -182,9 +213,13 @@ const Expense = () => {
             </select>
           </div>
 
-          {/* Date */}
           <div>
-            <label htmlFor='date' className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            <label
+              htmlFor="date"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Date
+            </label>
             <input
               id="date"
               type="date"
@@ -196,9 +231,10 @@ const Expense = () => {
             />
           </div>
 
-          {/* Receipt Image */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Receipt Image (optional)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Receipt Image (optional)
+            </label>
             <input
               type="file"
               name="receipt_image"
@@ -207,7 +243,6 @@ const Expense = () => {
             />
           </div>
 
-          {/* Submit Button */}
           <div className="text-right">
             <button
               data-testid="add-expense-button"

@@ -1,14 +1,16 @@
 import React from "react";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import Settlements from "../components/settlements" // adjust path as needed
+import Settlements from "../components/settlements";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import axios from "axios";
+import axiosInstance from "../api/axiosInstance";
 
-jest.mock("axios");
-
-const mockUser = {
-  username: "john_doe",
-};
+jest.mock("../api/axiosInstance", () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    patch: jest.fn(),
+  },
+}));
 
 const mockSettlements = [
   {
@@ -31,9 +33,22 @@ const mockSettlements = [
   },
 ];
 
+const mockUser = {
+  username: "john_doe",
+  college: "Test University",
+  semester: "5th",
+};
+
 const renderWithRouter = () =>
   render(
-    <MemoryRouter initialEntries={[{ pathname: "/settlements/john_doe", state: { user: mockUser } }]}>
+    <MemoryRouter
+      initialEntries={[
+        {
+          pathname: "/settlements/john_doe",
+          state: { user: mockUser },
+        },
+      ]}
+    >
       <Routes>
         <Route path="/settlements/:username" element={<Settlements />} />
       </Routes>
@@ -42,17 +57,19 @@ const renderWithRouter = () =>
 
 describe("Settlements Component", () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     localStorage.setItem("token", "mock-token");
+    localStorage.setItem("access_token", "mock-token");
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    localStorage.clear();
   });
 
-  it("renders loading initially and then displays settlements", async () => {
-    axios.get
-      .mockResolvedValueOnce({ headers: {}, data: { csrfToken: "mock-csrf" } }) // CSRF token fetch
-      .mockResolvedValueOnce({ data: { settlements: mockSettlements } }); // settlements fetch
+  it("renders settlements after loading", async () => {
+    axiosInstance.get
+      .mockResolvedValueOnce({ headers: {}, data: { csrfToken: "mock-csrf" } })
+      .mockResolvedValueOnce({ data: { settlements: mockSettlements } });
 
     renderWithRouter();
 
@@ -62,80 +79,114 @@ describe("Settlements Component", () => {
       expect(screen.getByText("Trip to Banff")).toBeInTheDocument();
       expect(screen.getByText("Weekend Getaway")).toBeInTheDocument();
     });
+
+    expect(axiosInstance.get).toHaveBeenNthCalledWith(1, "/csrf/");
+    expect(axiosInstance.get).toHaveBeenNthCalledWith(
+      2,
+      `/api/v1/settlements/${mockUser.username}/`,
+      {
+        headers: {
+          "X-Username": mockUser.username,
+        },
+      }
+    );
   });
 
   it("displays error message if fetching settlements fails", async () => {
-    axios.get
+    axiosInstance.get
       .mockResolvedValueOnce({ headers: {}, data: { csrfToken: "mock-csrf" } })
       .mockRejectedValueOnce(new Error("Fetch failed"));
 
     renderWithRouter();
 
     await waitFor(() => {
-      expect(screen.getByText(/Error fetching settlements./i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Error fetching settlements./i)
+      ).toBeInTheDocument();
     });
   });
 
   it("sorts settlements by clicking table headers", async () => {
-    axios.get
+    axiosInstance.get
       .mockResolvedValueOnce({ headers: {}, data: { csrfToken: "mock-csrf" } })
       .mockResolvedValueOnce({ data: { settlements: mockSettlements } });
 
     renderWithRouter();
 
-    // Wait for data to load
     await waitFor(() => screen.getByText("Trip to Banff"));
 
-    // Initially sorted by group_name asc, first row should be "Trip to Banff"
     let firstGroupCell = screen.getAllByRole("cell")[0];
     expect(firstGroupCell.textContent).toBe("Trip to Banff");
 
-    // Click to sort by amount ascending
     fireEvent.click(screen.getByText(/Amount/i));
     firstGroupCell = screen.getAllByRole("cell")[0];
     expect(firstGroupCell.textContent).toBe("Weekend Getaway");
 
-    // Click to sort by amount descending
     fireEvent.click(screen.getByText(/Amount/i));
     firstGroupCell = screen.getAllByRole("cell")[0];
     expect(firstGroupCell.textContent).toBe("Trip to Banff");
   });
 
   it("marks a pending settlement as completed", async () => {
-    axios.get
+    axiosInstance.get
       .mockResolvedValueOnce({ headers: {}, data: { csrfToken: "mock-csrf" } })
       .mockResolvedValueOnce({ data: { settlements: mockSettlements } });
 
-    axios.patch.mockResolvedValueOnce({ status: 200 });
+    axiosInstance.patch.mockResolvedValueOnce({ status: 200 });
 
     renderWithRouter();
 
     await waitFor(() => screen.getByText("Trip to Banff"));
 
-    const markCompletedButton = screen.getByRole("button", { name: /Mark as Completed/i });
+    const markCompletedButton = screen.getByRole("button", {
+      name: /Mark as Completed/i,
+    });
     fireEvent.click(markCompletedButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/Payment status updated successfully!/i)).toBeInTheDocument();
+      expect(axiosInstance.patch).toHaveBeenCalledWith(
+        "/api/v1/settlements/1/",
+        { payment_status: "Completed" },
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "X-Username": mockUser.username,
+            "X-CSRFToken": "mock-csrf",
+          }),
+        })
+      );
     });
+
+    await waitFor(() => {
+    expect(screen.getAllByTestId("completed-status").length).toBeGreaterThan(0);
+  });
   });
 
   it("shows error if marking completed fails", async () => {
-    axios.get
+    axiosInstance.get
       .mockResolvedValueOnce({ headers: {}, data: { csrfToken: "mock-csrf" } })
       .mockResolvedValueOnce({ data: { settlements: mockSettlements } });
 
-    axios.patch.mockRejectedValueOnce(new Error("Patch failed"));
+    axiosInstance.patch.mockRejectedValueOnce({
+      response: {
+        data: {
+          error: "Failed to update payment status. Please try again.",
+        },
+      },
+    });
 
     renderWithRouter();
 
     await waitFor(() => screen.getByText("Trip to Banff"));
 
-    const markCompletedButton = screen.getByRole("button", { name: /Mark as Completed/i });
+    const markCompletedButton = screen.getByRole("button", {
+      name: /Mark as Completed/i,
+    });
     fireEvent.click(markCompletedButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/Failed to update payment status. Please try again./i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Failed to update payment status. Please try again./i)
+      ).toBeInTheDocument();
     });
   });
 });

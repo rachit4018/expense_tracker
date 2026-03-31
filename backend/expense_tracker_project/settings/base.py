@@ -6,9 +6,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY
 SECRET_KEY = config('SECRET_KEY', default='dev-insecure-key')
-DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = ['*']
-
+DEBUG = False
+ALLOWED_HOSTS = []
 # Applications
 INSTALLED_APPS = [
     'corsheaders',
@@ -22,7 +21,7 @@ INSTALLED_APPS = [
     'rest_auth',
     'rest_framework.authtoken',
     'rest_framework_simplejwt',
-    'expense_tracker',
+    'expense_tracker',  
 ]
 
 MIDDLEWARE = [
@@ -112,7 +111,7 @@ SIMPLE_JWT = {
 }
 
 # CORS & CSRF defaults
-CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = ['DELETE','GET','OPTIONS','PATCH','POST','PUT']
 CORS_ALLOW_HEADERS = [
@@ -120,13 +119,13 @@ CORS_ALLOW_HEADERS = [
     'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with', 'x-username',
 ]
 CSRF_COOKIE_SECURE = False
-CSRF_TRUSTED_ORIGINS = ['http://localhost:3000', 'http://localhost:8000']
+
 
 # Email defaults
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='your-email@gmail.com')
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='pandyarachit1525@gmail.com')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

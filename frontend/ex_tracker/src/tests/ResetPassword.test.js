@@ -1,11 +1,18 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ResetPassword from "../components/resetpassword";
-import axios from "axios";
 import { BrowserRouter } from "react-router-dom";
+import axiosInstance from "../api/axiosInstance";
 
 // Mock axios
-jest.mock("axios");
+jest.mock("../api/axiosInstance", () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    post: jest.fn(),
+  },
+}));
+
 
 // Mock react-router hooks
 const mockNavigate = jest.fn();
@@ -30,7 +37,7 @@ describe("ResetPassword Component", () => {
   test("renders email reset form when no token in URL", async () => {
     require("react-router-dom").useParams.mockReturnValue({ token: undefined });
 
-    axios.get.mockResolvedValue({
+    axiosInstance.get.mockResolvedValue({
       data: { csrfToken: "mock-csrf" },
       headers: {},
     });
@@ -52,7 +59,7 @@ describe("ResetPassword Component", () => {
       token: "abc123",
     });
 
-    axios.get.mockResolvedValue({
+    axiosInstance.get.mockResolvedValue({
       data: { csrfToken: "mock-csrf" },
       headers: {},
     });
@@ -73,12 +80,12 @@ describe("ResetPassword Component", () => {
   test("submits email and shows success message", async () => {
     require("react-router-dom").useParams.mockReturnValue({ token: undefined });
 
-    axios.get.mockResolvedValue({
+    axiosInstance.get.mockResolvedValue({
       data: { csrfToken: "mock-csrf" },
       headers: {},
     });
 
-    axios.post.mockResolvedValue({
+    axiosInstance.post.mockResolvedValue({
       data: { message: "Reset email sent." },
     });
 
@@ -101,12 +108,12 @@ describe("ResetPassword Component", () => {
   test("shows error if email reset fails", async () => {
     require("react-router-dom").useParams.mockReturnValue({ token: undefined });
 
-    axios.get.mockResolvedValue({
+    axiosInstance.get.mockResolvedValue({
       data: { csrfToken: "mock-csrf" },
       headers: {},
     });
 
-    axios.post.mockRejectedValue({
+    axiosInstance.post.mockRejectedValue({
       response: { data: { error: "User not found" } },
     });
 
@@ -131,12 +138,12 @@ describe("ResetPassword Component", () => {
       token: "abc123",
     });
 
-    axios.get.mockResolvedValue({
+    axiosInstance.get.mockResolvedValue({
       data: { csrfToken: "mock-csrf" },
       headers: {},
     });
 
-    axios.post.mockResolvedValue({
+    axiosInstance.post.mockResolvedValue({
       data: { message: "Password has been reset successfully." },
     });
 
@@ -170,12 +177,12 @@ describe("ResetPassword Component", () => {
       token: "abc123",
     });
 
-    axios.get.mockResolvedValue({
+    axiosInstance.get.mockResolvedValue({
       data: { csrfToken: "mock-csrf" },
       headers: {},
     });
 
-    axios.post.mockRejectedValue({
+    axiosInstance.post.mockRejectedValue({
       response: { data: { error: "Invalid or expired token." } },
     });
 

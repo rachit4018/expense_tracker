@@ -81,9 +81,9 @@ def signup_view(request):
         )
 
     # Generate unique verification code
-    existing_codes = User.objects.values_list('verification_code', flat=True)
-    verification_code = generate_verification_code(existing_codes)
-    data['verification_code'] = verification_code
+    # existing_codes = User.objects.values_list('verification_code', flat=True)
+    # verification_code = generate_verification_code(existing_codes)
+    # data['verification_code'] = verification_code
 
     # Use serializer to create the user
     serializer = SignupSerializer(data=data)
@@ -91,7 +91,7 @@ def signup_view(request):
         user = serializer.save()  # Save user to DB
 
         # Send verification email
-        send_verification_email(user, verification_code)
+        send_verification_email(user, user.verification_code)
 
         return Response(
             {'message': 'Sign up successful! Please check your email for the verification code.'},
@@ -737,7 +737,7 @@ class ResetPasswordView(APIView):
         # Generate a unique token
         token = get_random_string(50)
         expiry = timezone.now() + timedelta(minutes=10)
-        reset_link = f"http://localhost:3000/reset-password/{token}/"  # Hardcoded link
+        reset_link = f"http://3.96.166.110/reset-password/{token}/"  # Hardcoded link
         try:
             PasswordResetToken.objects.create(user=user, token=token, expiry=expiry)
         except Exception as e:

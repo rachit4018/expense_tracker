@@ -124,19 +124,23 @@ jobs:
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.EC2_STAGING_KEY }}" > ~/.ssh/staging.pem
-          chmod 600 ~/.ssh/staging.pem
+          echo "${{ secrets.EC2_STAGING_KEY_B64 }}" | base64 -d > ~/.ssh/expense-tracker-sg.pem
+          chmod 600 ~/.ssh/expense-tracker-sg.pem
           ssh-keyscan -H ${{ secrets.EC2_STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Verify SSH key
+        run: |
+          ssh-keygen -l -f ~/.ssh/expense-tracker-sg.pem
 
       - name: Copy .env file to EC2
         run: |
           echo "${{ secrets.ENV_STAGING }}" > .env.prod
-          scp -i ~/.ssh/staging.pem .env.prod \
+          scp -i ~/.ssh/expense-tracker-sg.pem .env.prod \
             ${{ secrets.EC2_STAGING_USER }}@${{ secrets.EC2_STAGING_HOST }}:/var/www/expense_tracker/.env.prod
 
       - name: Deploy on EC2
         run: |
-          ssh -i ~/.ssh/staging.pem \
+          ssh -i ~/.ssh/expense-tracker-sg.pem \
             ${{ secrets.EC2_STAGING_USER }}@${{ secrets.EC2_STAGING_HOST }} << 'EOF'
             set -e
             cd /var/www/expense_tracker
@@ -151,7 +155,7 @@ jobs:
             sudo docker exec django_backend_prod python manage.py migrate
             sudo docker exec django_backend_prod python manage.py collectstatic --noinput
             sudo docker compose -f docker-compose.prod.yml ps
-            echo "Deploy complete!"
+            echo ">>> Deploy complete!"
             EOF
 
       - name: Notify success

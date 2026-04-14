@@ -4,6 +4,9 @@ from django.conf import settings
 from datetime import datetime
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django import forms
+import string
+import random
+from django.utils import timezone 
 
 class CustomUser(AbstractUser):
     college = models.CharField(max_length=255)
@@ -53,19 +56,90 @@ class Expense(models.Model):
     group_id = models.ForeignKey('Group', on_delete=models.CASCADE)
 
 
+
+def generate_group_code():
+    """Generates a unique 8-character alphanumeric code e.g. AB12CD34"""
+    chars = string.ascii_uppercase + string.digits
+    while True:
+        code = ''.join(random.choices(chars, k=8))
+        if not Group.objects.filter(code=code).exists():
+            return code
+
+
+# REPLACE WITH this
 class Group(models.Model):
-    group_id = models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')
-    name = models.CharField(max_length=100)
-    members = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='%(class)s_groups')  # Custom reverse accessor for members
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='%(class)s_created_groups',
-        to_field='username'  # Specify using 'username' as the reference field
-    )
+    group_id    = models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')
+    name        = models.CharField(max_length=100)
+
+    # NEW: unique join code
+    code        = models.CharField(max_length=8, unique=True, blank=True)
+
+    # NEW: admin is the group creator
+    admin       = models.ForeignKey(
+                    settings.AUTH_USER_MODEL,
+                    on_delete=models.CASCADE,
+                    related_name='administered_groups',
+                    null=True,
+                    blank=True
+                  )
+
+    # CHANGED: now uses GroupMembership through model
+    members     = models.ManyToManyField(
+                    settings.AUTH_USER_MODEL,
+                    related_name='group_groups',
+                    through='GroupMembership'
+                  )
+
+    created_by  = models.ForeignKey(
+                    settings.AUTH_USER_MODEL,
+                    on_delete=models.CASCADE,
+                    related_name='group_created_groups',
+                    to_field='username'
+                  )
+
+    # NEW: track when group was created
+    created_at  = models.DateTimeField(auto_now_add=True, null=True)
+
+    def save(self, *args, **kwargs):
+        # Auto-generate code on first save
+        if not self.code:
+            self.code = generate_group_code()
+        super().save(*args, **kwargs)
+
+    def regenerate_code(self):
+        """Admin calls this to invalidate old invites"""
+        self.code = generate_group_code()
+        self.save()
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.code})"
+    
+
+class GroupMembership(models.Model):
+    """
+    Tracks each user's membership in a group.
+    is_active=False means the member was removed by admin.
+    """
+    class JoinMethod(models.TextChoices):
+        CODE    = 'code',    'Joined via Code'
+        INVITED = 'invited', 'Invited by Admin'
+        CREATOR = 'creator', 'Group Creator'
+
+    user        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    group       = models.ForeignKey(Group, on_delete=models.CASCADE)
+    joined_at   = models.DateTimeField(auto_now_add=True)
+    join_method = models.CharField(
+                    max_length=20,
+                    choices=JoinMethod.choices,
+                    default=JoinMethod.CODE
+                  )
+    is_active   = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('user', 'group')
+
+    def __str__(self):
+        return f"{self.user.username} in {self.group.name}"
 
 class Settlement(models.Model):
     id = models.AutoField(primary_key=True)

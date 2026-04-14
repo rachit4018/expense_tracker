@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Category, Expense, Group, Settlement
+from .models import CustomUser, Category, Expense, Group, GroupMembership, Settlement
 
 # CustomUser admin configuration
 class CustomUserAdmin(UserAdmin):
@@ -23,11 +23,18 @@ class ExpenseAdmin(admin.ModelAdmin):
     search_fields = ('amount', 'category__name', 'created_by__username')
     ordering = ('date',)
 
+# GroupMembership inline for Group admin
+class GroupMembershipInline(admin.TabularInline):
+    model = GroupMembership
+    extra = 1
+    fields = ('user', 'join_method', 'is_active', 'joined_at')
+    readonly_fields = ('joined_at',)
+
 # Group admin configuration
 class GroupAdmin(admin.ModelAdmin):
-    list_display = ('group_id', 'name','created_by')
+    list_display = ('group_id', 'name', 'created_by')
     search_fields = ('name',)
-    filter_horizontal = ('members',)  # For selecting multiple members easily
+    inlines = [GroupMembershipInline]
     ordering = ('name',)
 
 # Settlement admin configuration
